@@ -1,0 +1,55 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Encoding & Sprache ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel} % aktiviert automatische Silbentrennung
+
+% ---------- Formalia gemaess Kapitel 4.3 der Aufgabenstellung ----------
+% Seitenraender: oben/unten 2cm, links 2cm, rechts 2cm
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm]{geometry}
+
+% Schrifttyp: Arial ist proprietaer und in pdfLaTeX nicht direkt einbettbar.
+% Helvetica (helvet) ist metrisch kompatibel und die uebliche pdfLaTeX-Alternative.
+\usepackage[scaled]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Zeilenabstand 1,5
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{enumitem}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt} % Absatzabstand 6pt nach Zeilenumbruch
+
+% Fussnoten: Arial 10pt, Blocksatz
+\usepackage[flushmargin]{footmisc}
+\renewcommand{\footnotesize}{\fontsize{10}{12}\selectfont}
+
+\begin{document}
+
+% Blocksatz ist LaTeX-Standard (\justify), Silbentrennung via babel aktiv.
+
+\begin{center}
+{\fontsize{12}{14}\selectfont\textbf{Abstract}}\\[4pt]
+{\fontsize{12}{14}\selectfont Datenbankentwurf für eine Buchtausch-App}\\[2pt]
+\normalsize Tizian Senger -- Matrikelnummer: IU14143428 -- DLBDSPBDM01\_D
+\end{center}
+
+\vspace{6pt}
+
+% =========================================================
+{\fontsize{12}{14}\selectfont\textbf{Inhaltliche und konzeptionelle Beschreibung}}
+% =========================================================
+
+% TODO (ca. 0,75-1 Seite): Problem, Zielsetzung, Konzept und erreichtes Ergebnis
+% der Buchtausch-App-Datenbank zusammenfassend darstellen.
+
+% =========================================================
+{\fontsize{12}{14}\selectfont\textbf{Making of -- technischer Breakdown}}
+% =========================================================
+
+% TODO (ca. 0,5-0,75 Seite): Nuechterner, informativer Ueberblick ueber die technische
+% Herangehensweise: gewaehltes DBMS, Vorgehen ueber die drei Phasen, eingesetzte Tools.
+
+\end{document}

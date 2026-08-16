@@ -1,0 +1,221 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Encoding & Sprache ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+
+% ---------- Layout ----------
+\usepackage[margin=2cm]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\setlist{nosep, itemsep=1pt, topsep=2pt}
+
+% ---------- Tabellen ----------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+
+% ---------- ER-Diagramm ----------
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, positioning, arrows.meta, bending}
+
+% ---------- Sonstiges ----------
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{3pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\pagenumbering{gobble} % Deckblatt-Konvention: schlanke Kopf-/Fusszeile, Seitenzahl folgt separat
+\pagestyle{plain}
+\pagenumbering{arabic}
+
+\title{\vspace{-1.5cm}\Large\textbf{Portfolioteil 1 -- Konzeptionsphase}\\[2pt]
+\large Datenbankentwurf für eine Buchtausch-App\\[2pt]
+\normalsize DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL}
+\author{Tizian Senger \\ Matrikelnummer: IU14143428}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.2cm}
+
+% =========================================================
+\section*{1. Kurzbeschreibung des Problems und Lösungsansatz}
+% =========================================================
+
+\textbf{Problemstellung:} Viele Menschen besitzen Bücher, die sie aktuell nicht lesen, aber nicht dauerhaft abgeben möchten. Gleichzeitig gibt es in der Nachbarschaft Bücher, die andere gerne lesen würden, ohne sie kaufen zu müssen. Ein strukturierter, lokaler Austausch scheitert bisher an fehlender Organisation: Es gibt keine zentrale Übersicht, wer welches Buch besitzt, wann und wo es abgeholt werden kann und ob eine ausleihende Person vertrauenswürdig ist.
+
+\textbf{Lösungsansatz:} Die \emph{Buchtausch-App} löst dieses Problem durch eine relationale Datenbank, die Bücher, Nutzende, Ausleihvorgänge und Bewertungen strukturiert verwaltet. Die Datenbank wird in einem SQL-basierten Datenbankmanagementsystem (z.\,B. MySQL/MariaDB) umgesetzt und in der 3. Normalform normalisiert, um Redundanzen (z.\,B. mehrfach gespeicherte Autor:innen- oder Verlagsnamen) zu vermeiden. Attribute für Geokoordinaten ermöglichen eine räumliche Umkreissuche, damit Nutzende verfügbare Bücher in ihrer Nähe auf einer Karte sehen können. Flexible Verfügbarkeitsangaben (Zeitslots, Abholorte, Versandoptionen) sowie ein Bewertungssystem schaffen die notwendige Transparenz und das Vertrauen für einen funktionierenden Austausch. Das Vorgehen orientiert sich an den drei vorgegebenen Phasen: Konzeption (ER-Modell), Erarbeitung (SQL-Implementierung mit Testdaten) und Finalisierung (Verfeinerung und Dokumentation).
+
+% =========================================================
+\section*{2. Anforderungsspezifikation}
+% =========================================================
+
+\subsection*{2.1 Rollen (Personen-/Benutzendengruppen)}
+\begin{itemize}
+    \item \textbf{Gast:} Nicht registrierte Person. Kann Bücher durchsuchen und die Kartenansicht nutzen, jedoch keine Bücher einstellen oder ausleihen.
+    \item \textbf{Registrierte:r Nutzer:in:} Zentrale Rolle der App. Kann Bücher anbieten (als Eigentümer:in) und Bücher ausleihen (als Entleiher:in). Beide Teilrollen werden von derselben Entität \emph{Nutzer} abgebildet, da eine Person gleichzeitig Bücher verleihen und ausleihen kann.
+    \item \textbf{Administrator:in:} Verwaltet Nutzendenkonten, moderiert unangemessene Inhalte/Bewertungen und erhält Einblick in Systemstatistiken.
+\end{itemize}
+
+\subsection*{2.2 Aktionen der Rollen}
+\begin{itemize}
+    \item \textbf{Gast:} Bücher/Genres durchsuchen, Umkreissuche über Kartenansicht nutzen, Registrierung durchführen.
+    \item \textbf{Registrierte:r Nutzer:in:} Profil und Adresse verwalten; Bücher mit Titel, Autor:in, Verlag, Genre, Erscheinungsjahr, Sprache und Zustand einstellen; Zeitslots, Abholort und Versandoptionen für ein Buch festlegen; Bücher suchen und ausleihen (Reservierung eines Zeitslots); Ausleihe zurückgeben; Bewertungen und Kommentare zu einer abgeschlossenen Ausleihe abgeben; Benachrichtigungen zu Ausleihstatus erhalten.
+    \item \textbf{Administrator:in:} Nutzendenkonten sperren/entsperren, unangemessene Bewertungen oder Bucheinträge entfernen, Statistiken (Anzahl Nutzende, Bücher, Ausleihen) einsehen.
+\end{itemize}
+
+\subsection*{2.3 Benötigte Daten und Funktionen}
+\begin{itemize}
+    \item \textbf{Buchdaten:} Titel, Autor:in(nen), Verlag, Genre, Erscheinungsjahr, Sprache, Zustand.
+    \item \textbf{Ausleihbedingungen:} maximale Ausleihdauer, Abholort (Koordinaten für Kartenanzeige), verfügbare Zeitslots, Versandmöglichkeit und -kosten.
+    \item \textbf{Nutzendendaten:} Name, Adresse, Kontaktinformationen (E-Mail, Telefon).
+    \item \textbf{Transaktionsdaten:} ausgeliehenes Buch, ausleihende und anbietende Person, Ausleih- und Rückgabedatum, Status.
+    \item \textbf{Bewertungsdaten:} Sternebewertung und Kommentar zu einer abgeschlossenen Ausleihe.
+    \item \textbf{Funktionen:} Volltext- und Umkreissuche (Kartenansicht auf Basis von Geokoordinaten), Verfügbarkeitsprüfung je Zeitslot, Ausleih- und Rückgabeprozess, Bewertungssystem, Benachrichtigungen.
+\end{itemize}
+
+% =========================================================
+\section*{3. Entity-Relationship-Modell}
+% =========================================================
+
+Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entitäten dar, Rauten stellen Beziehungen dar. Orange hervorgehobene Rauten kennzeichnen die drei geforderten \textbf{Dreifachbeziehungen} (Join über drei Tabellen). Die Kardinalität an einer Entität gibt an, mit wie vielen Instanzen der Gegenseite eine einzelne Instanz dieser Entität in Beziehung stehen kann (Notation: (min,\,max)).
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  ent/.style={draw, rectangle, rounded corners=1pt, minimum width=2.3cm, minimum height=0.8cm, align=center, font=\fontsize{7}{8}\selectfont, fill=blue!4},
+  rel/.style={draw, diamond, aspect=1.7, minimum width=1.7cm, minimum height=0.9cm, align=center, font=\fontsize{6.5}{7.5}\selectfont, fill=gray!8, inner sep=0pt},
+  trel/.style={draw, diamond, aspect=1.7, minimum width=2cm, minimum height=1.05cm, align=center, font=\fontsize{6.5}{7.5}\selectfont, fill=orange!25, inner sep=0pt, line width=1pt},
+  lbl/.style={font=\fontsize{5.5}{6}\selectfont, fill=white, inner sep=1pt, align=center},
+  every path/.style={draw, -}
+]
+
+% ---- Entitäten (Rechtecke) ----
+\node[ent] (adresse)   at (1.5, 12)  {ADRESSE};
+\node[ent] (nutzer)    at (7, 12)    {NUTZER};
+\node[ent] (benachr)   at (13.5, 12) {BENACHRICH-\\TIGUNG};
+
+\node[ent] (verlag)    at (1, 8.3)   {VERLAG};
+\node[ent] (autor)     at (1, 6)     {AUTOR};
+\node[ent] (buch)      at (7, 6.3)   {BUCH};
+\node[ent] (sprache)   at (14, 8.3)  {SPRACHE};
+\node[ent] (genre)     at (14, 6)    {GENRE};
+
+\node[ent] (versand)   at (14, 3.2)  {VERSAND-\\OPTION};
+\node[ent] (zeitslot)  at (2.5, 1.2) {ZEITSLOT};
+\node[ent] (standort)  at (11, 1.2)  {STANDORT};
+
+% ---- Binäre Beziehungen (graue Rauten) ----
+\node[rel] (wohnt)   at (4, 12)     {WOHNT\\AN};
+\node[rel] (erhaelt) at (10.3, 12)  {ERHÄLT};
+\node[rel] (besitzt) at (7, 9.3)    {BESITZT};
+\node[rel] (veroeff) at (3.2, 8)    {VERÖFFENT-\\LICHT};
+\node[rel] (verfasst)at (3.2, 6.4)  {VERFASST};
+\node[rel] (geschr)  at (10.8, 8)   {GESCHRIEBEN\\IN};
+\node[rel] (gehoert) at (10.8, 6.4) {GEHÖRT\\ZU};
+\node[rel] (bietet)  at (10.8, 4.1) {BIETET};
+
+% ---- Ternäre Beziehungen (orange, hervorgehoben) ----
+\node[trel] (bewertet)    at (13, 9.7) {BEWERTET};
+\node[trel] (leiht)       at (5.7, 3.2) {LEIHT\\AUS};
+\node[trel] (verfuegbar)  at (7, 1.2)  {VERFÜGBAR\\AN};
+
+% ---- Kanten: binäre Beziehungen ----
+\draw (nutzer) -- (wohnt) node[lbl, pos=0.5] {(1,N)};
+\draw (wohnt) -- (adresse) node[lbl, pos=0.5] {(1,1)};
+
+\draw (nutzer) -- (erhaelt) node[lbl, pos=0.5] {(0,N)};
+\draw (erhaelt) -- (benachr) node[lbl, pos=0.5] {(1,1)};
+
+\draw (nutzer) -- (besitzt) node[lbl, pos=0.5] {(0,N)};
+\draw (besitzt) -- (buch) node[lbl, pos=0.5] {(1,1)};
+
+\draw (buch) -- (verfasst) node[lbl, pos=0.5] {(1,N)};
+\draw (verfasst) -- (autor) node[lbl, pos=0.5] {(1,N)};
+
+\draw (buch) -- (veroeff) node[lbl, pos=0.5] {(1,1)};
+\draw (veroeff) -- (verlag) node[lbl, pos=0.3] {(0,N)};
+
+\draw (buch) -- (gehoert) node[lbl, pos=0.5] {(1,N)};
+\draw (gehoert) -- (genre) node[lbl, pos=0.5] {(0,N)};
+
+\draw (buch) -- (geschr) node[lbl, pos=0.5] {(1,1)};
+\draw (geschr) -- (sprache) node[lbl, pos=0.5] {(0,N)};
+
+\draw (buch) -- (bietet) node[lbl, pos=0.5] {(0,1)};
+\draw (bietet) -- (versand) node[lbl, pos=0.5] {(1,1)};
+
+% ---- Kanten: ternäre Beziehungen ----
+% LEIHT AUS: Nutzer (Entleiher) - Buch - Zeitslot
+\draw (nutzer.south) .. controls (6.5,8) and (5.5,5) .. (leiht.north) node[lbl, pos=0.45] {Entleiher:in\\(0,N)};
+\draw (buch) -- (leiht) node[lbl, pos=0.5] {(0,N)};
+\draw (leiht) -- (zeitslot) node[lbl, pos=0.5] {(1,1)};
+
+% BEWERTET: Nutzer (Bewertende:r) - Buch - Nutzer (Eigentümer:in)
+\draw (nutzer.south east) .. controls (9,10.8) and (11.5,10.6) .. (bewertet.north west) node[lbl, pos=0.3] {Bewertende:r (0,N)};
+\draw (nutzer.south east) .. controls (9.5,9.8) and (11.2,9.7) .. (bewertet.west) node[lbl, pos=0.6] {Eigentümer:in (0,N)};
+\draw (buch.east) .. controls (11,7) and (12.5,8.3) .. (bewertet.south) node[lbl, pos=0.25] {(0,N)};
+
+% VERFÜGBAR AN: Buch - Zeitslot - Standort
+\draw (buch) -- (verfuegbar) node[lbl, pos=0.3] {(0,N)};
+\draw (zeitslot) -- (verfuegbar) node[lbl, pos=0.5] {(1,1)};
+\draw (verfuegbar) -- (standort) node[lbl, pos=0.5] {(0,N)};
+
+\end{tikzpicture}%
+}
+\end{center}
+
+\textit{Hinweis:} Die binären M:N-Beziehungen \emph{Verfasst} (Buch--Autor) und \emph{Gehört zu} (Buch--Genre) werden bei der relationalen Umsetzung in Phase 2 als eigene Verknüpfungstabellen (\texttt{Buch\_Autor}, \texttt{Buch\_Genre}) aufgelöst.
+
+% =========================================================
+\section*{4. Datenwörterbuch}
+% =========================================================
+
+\subsection*{4.1 Entitäten und Attribute}
+{\fontsize{9}{10}\selectfont
+\begin{longtable}{@{}p{3.6cm}p{10.4cm}@{}}
+\toprule
+\textbf{Entität} & \textbf{Attribute (Typ) -- PK unterstrichen, FK kursiv} \\
+\midrule
+\endhead
+NUTZER & \underline{nutzer\_id} (INT), vorname (VARCHAR(50)), nachname (VARCHAR(50)), email (VARCHAR(100), UNIQUE), passwort\_hash (VARCHAR(255)), telefon (VARCHAR(20)), rolle (ENUM: nutzer/admin), registriert\_am (DATE) \\
+ADRESSE & \underline{adresse\_id} (INT), \textit{nutzer\_id} (INT), strasse (VARCHAR(100)), hausnummer (VARCHAR(10)), plz (VARCHAR(10)), stadt (VARCHAR(50)), land (VARCHAR(50)) \\
+BUCH & \underline{buch\_id} (INT), titel (VARCHAR(150)), \textit{eigentuemer\_id} (INT), \textit{verlag\_id} (INT), \textit{sprache\_id} (INT), erscheinungsjahr (YEAR), zustand (ENUM: neu/gut/gebraucht/stark~gebraucht), erstellt\_am (DATE) \\
+AUTOR & \underline{autor\_id} (INT), vorname (VARCHAR(50)), nachname (VARCHAR(50)) \\
+VERLAG & \underline{verlag\_id} (INT), name (VARCHAR(100)), land (VARCHAR(50)) \\
+GENRE & \underline{genre\_id} (INT), bezeichnung (VARCHAR(50)) \\
+SPRACHE & \underline{sprache\_id} (INT), bezeichnung (VARCHAR(50)), iso\_code (CHAR(2)) \\
+ZEITSLOT & \underline{zeitslot\_id} (INT), datum (DATE), startzeit (TIME), endzeit (TIME) \\
+STANDORT & \underline{standort\_id} (INT), bezeichnung (VARCHAR(100)), strasse (VARCHAR(100)), plz (VARCHAR(10)), stadt (VARCHAR(50)), breitengrad (DECIMAL(9,6)), laengengrad (DECIMAL(9,6)) \\
+VERSANDOPTION & \underline{versandoption\_id} (INT), \textit{buch\_id} (INT), versandart (ENUM: abholung/post/beides), kosten (DECIMAL(6,2)) \\
+BENACHRICHTIGUNG & \underline{benachrichtigung\_id} (INT), \textit{nutzer\_id} (INT), typ (VARCHAR(30)), inhalt (TEXT), gelesen (BOOLEAN), erstellt\_am (DATETIME) \\
+\bottomrule
+\end{longtable}
+}
+
+\subsection*{4.2 Beziehungen mit eigenen Attributen (Dreifachbeziehungen)}
+{\fontsize{9}{10}\selectfont
+\begin{longtable}{@{}p{2.9cm}p{3.4cm}p{7.2cm}@{}}
+\toprule
+\textbf{Beziehung} & \textbf{Verknüpfte Entitäten} & \textbf{Attribute (Typ)} \\
+\midrule
+\endhead
+LEIHT\_AUS & Nutzer, Buch, Zeitslot & \underline{ausleihe\_id} (INT), ausleihdatum (DATE), rueckgabedatum (DATE, NULLABLE), status (ENUM: aktiv/zurückgegeben/überfällig) \\
+BEWERTET & Nutzer (Bewertende:r), Buch, Nutzer (Eigentümer:in) & \underline{bewertung\_id} (INT), sternebewertung (TINYINT, 1--5), kommentar (TEXT), bewertungsdatum (DATE) \\
+VERFÜGBAR\_AN & Buch, Zeitslot, Standort & \underline{verfuegbarkeit\_id} (INT), verfuegbar (BOOLEAN) \\
+\bottomrule
+\end{longtable}
+}
+
+\vspace{2pt}
+\textit{Alle drei Beziehungen sind echte Dreifachbeziehungen: Eine einzelne Beziehungsinstanz wird erst durch die gleichzeitige Kombination aller drei beteiligten Entitäten eindeutig bestimmt (z.\,B. entsteht ein Ausleihvorgang erst durch die Kombination aus Nutzer:in, Buch \emph{und} Zeitslot).}
+
+\end{document}
