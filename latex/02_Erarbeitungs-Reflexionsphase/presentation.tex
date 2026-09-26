@@ -1,31 +1,57 @@
 \documentclass[11pt,aspectratio=169]{beamer}
 
-% ---------- Encoding & Sprache ----------
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
+% ---------- Sprache (XeLaTeX: kein inputenc/fontenc noetig) ----------
+\usepackage{fontspec}
 \usepackage[ngerman]{babel}
 
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,listings}
+\usepackage{enumitem}
+\setlist{itemsep=2pt, topsep=2pt}
 
-\lstset{
-  language=SQL,
-  basicstyle=\ttfamily\scriptsize,
-  breaklines=true,
-  frame=single,
-  keywordstyle=\color{blue}\bfseries,
-  commentstyle=\color{gray}
+% ---------- Modernes, flaches Theme ----------
+\usetheme{metropolis}
+\metroset{progressbar=frametitle, numbering=fraction, block=fill}
+\setbeamertemplate{navigation symbols}{}
+\definecolor{sqlteal}{RGB}{0,121,107}
+\setbeamercolor{progress bar}{fg=sqlteal}
+\setbeamercolor{alerted text}{fg=sqlteal}
+
+% ---------- Code-Boxen: abgerundet, dezent statt hartem Kasten ----------
+\newcommand{\sqlfontsize}{\fontsize{5.6}{6.2}\selectfont}
+\newtcblisting{sqlbox}{
+  listing only,
+  listing options={
+    language=SQL, basicstyle=\ttfamily\sqlfontsize, breaklines=true,
+    keywordstyle=\color{sqlteal}\bfseries,
+    commentstyle=\color{black!45}\itshape,
+    stringstyle=\color{orange!65!black}
+  },
+  colback=black!3, colframe=black!20, boxrule=0.4pt, arc=2mm,
+  left=3pt, right=3pt, top=1pt, bottom=1pt, enhanced,
 }
 
-\usetheme{Madrid}
-\setbeamertemplate{navigation symbols}{}
+% ---------- Platzhalter-/Screenshot-Box: zeigt das Bild, falls vorhanden,
+% sonst eine dezente, abgerundete Platzhalterbox mit Hinweistext. ----------
+\newtcolorbox{shotimg}[1][]{colback=white, colframe=black!20, arc=2mm, boxrule=0.4pt, width=0.97\linewidth, halign=center, valign=center, #1}
+\newcommand{\screenshotbox}[2]{%
+  \IfFileExists{screenshots/#1}%
+    {\begin{shotimg}[height=4.3cm]\includegraphics[width=0.94\linewidth, height=4.1cm, keepaspectratio]{screenshots/#1}\end{shotimg}}%
+    {\begin{shotimg}[height=2.6cm, colback=black!3]\tiny
+      \textit{Screenshot fehlt -- bitte \texttt{screenshots/#1} ergänzen.}\\[2pt]
+      Erwarteter Inhalt: #2
+    \end{shotimg}}%
+}
 
 \title[Buchtausch-App]{Datenbankentwurf für eine Buchtausch-App}
 \subtitle{Portfolioteil 2 -- Erarbeitungs-/Reflexionsphase}
-\author{Tizian Senger}
-\institute{DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL \\ Matrikelnummer: IU14143428 \\ \url{https://github.com/TizianSenger/IUDatabaseProject}}
-\date{\today}
+\author[T. Senger]{Tizian Senger}
+\institute[IU14143428]{DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL \\ Matrikelnummer: IU14143428 \\ \url{https://github.com/TizianSenger/IUDatabaseProject}}
+\date[26.09.2026]{\today}
 
 \begin{document}
 
@@ -43,179 +69,557 @@
 
 % ---- Folie 3: Kurzueberblick ueber das Datenbankdesign ----
 \begin{frame}{Überblick über das Datenbankdesign}
-  % TODO: Kurzer Rueckblick auf das ER-Modell aus Phase 1 (11 Entitaeten, 3 Dreifachbeziehungen).
+  \small
   \begin{itemize}
-    \item Verwendetes DBMS: % TODO
-    \item Anzahl Tabellen: % TODO
-    \item Normalform: 3. Normalform (3NF)
+    \item \textbf{Verwendetes DBMS:} SQLite 3 -- serverlos, eine einzelne Datei, voll SQL-faehig
+      (CHECK, FOREIGN KEY, TRIGGER, JOIN); laut Aufgabenstellung frei waehlbar.
+    \item \textbf{Anzahl Tabellen:} 17 (13 Entitaeten + 2 Dreifachbeziehungstabellen
+      \texttt{ausleihe}/\texttt{verfuegbarkeit} + 2 M:N-Tabellen \texttt{buch\_autor}/\texttt{buch\_genre}).
+    \item \textbf{Normalform:} 3. Normalform (3NF) -- keine transitiven Abhaengigkeiten,
+      Autor/Verlag/Genre/Sprache konsequent ausgelagert.
+    \item \textbf{Gegenueber Phase 1 umgesetztes Tutor-Feedback:}
+      \begin{itemize}
+        \footnotesize
+        \item BUCH (Werk) und BUCHEXEMPLAR (physische Kopie inkl. Eigentuemer:in) getrennt.
+        \item BEWERTUNG per eindeutigem FK an \texttt{ausleihe\_id} gekoppelt statt eigener Dreifachbeziehung.
+        \item Durchgaengige CHECK-Constraints (Sterne 1--5, Versandkosten $\geq$ 0, \texttt{startzeit < endzeit}).
+        \item Negativtestfaelle fuer alle zentralen Geschaeftsregeln (siehe Folien 20--22).
+      \end{itemize}
   \end{itemize}
 \end{frame}
 
 \section{Tabellen und SQL-Statements}
 
-% ---- Folien 4-14: Je eine Folie pro Entitaet (Dokumentation, Testfall, Screenshot) ----
-% Vorlage fuer jede der 11 Entitaeten aus Phase 1 (main.tex, Abschnitt 4.1):
-% Nutzer, Adresse, Buch, Autor, Verlag, Genre, Sprache, Zeitslot, Standort,
-% Versandoption, Benachrichtigung
+% =====================================================================
+% Folien 4-16: Je eine Folie pro Entitaet (13 Entitaeten aus Phase 1)
+% =====================================================================
 
 \begin{frame}[fragile]{Tabelle: NUTZER}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO: CREATE TABLE Nutzer (...);
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO: z. B. SELECT * FROM Nutzer WHERE ...;
-  \end{lstlisting}
-  % TODO: Screenshot des Ergebnisses aus dem DBMS einfuegen
-  % \includegraphics[width=\textwidth]{screenshots/nutzer.png}
+  \begin{sqlbox}
+CREATE TABLE nutzer (
+    nutzer_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    vorname        VARCHAR(50)  NOT NULL,
+    nachname       VARCHAR(50)  NOT NULL,
+    email          VARCHAR(100) NOT NULL UNIQUE,
+    passwort_hash  VARCHAR(255) NOT NULL,
+    telefon        VARCHAR(20),
+    rolle          VARCHAR(10)  NOT NULL
+        DEFAULT 'nutzer'
+        CHECK (rolle IN ('nutzer','admin')),
+    registriert_am DATE NOT NULL
+        DEFAULT CURRENT_DATE
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} \tiny\texttt{SELECT nutzer\_id, vorname, nachname, email FROM nutzer WHERE rolle = 'nutzer';}\normalsize\, (11 Treffer)
+
+  \screenshotbox{nutzer.png}{Tabellenergebnis mit 11 Nutzenden der Rolle 'nutzer'}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: ADRESSE}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-\end{frame}
+  \begin{sqlbox}
+CREATE TABLE adresse (
+    adresse_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    nutzer_id  INTEGER NOT NULL
+        REFERENCES nutzer(nutzer_id)
+        ON DELETE CASCADE,
+    strasse    VARCHAR(100) NOT NULL,
+    hausnummer VARCHAR(10)  NOT NULL,
+    plz        VARCHAR(10)  NOT NULL,
+    stadt      VARCHAR(50)  NOT NULL,
+    land       VARCHAR(50)  NOT NULL
+        DEFAULT 'Deutschland'
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Adresse von Anna Bauer per JOIN \texttt{adresse}--\texttt{nutzer} $\to$ Musterstrasse 12, 10115 Berlin.
 
-\begin{frame}[fragile]{Tabelle: BUCH}
-  \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-\end{frame}
-
-\begin{frame}[fragile]{Tabelle: AUTOR}
-  \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \screenshotbox{adresse.png}{Ergebniszeile mit Anna Bauers Adresse}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: VERLAG}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.46\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-\end{frame}
+  \begin{sqlbox}
+CREATE TABLE verlag (
+    verlag_id  INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    name  VARCHAR(100) NOT NULL UNIQUE,
+    land  VARCHAR(50)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.50\textwidth}
+  \textbf{Testfall:} \texttt{SELECT name FROM verlag WHERE land = 'Deutschland';} (9 von 10 Verlagen, Diogenes ist Schweizer Verlag)
 
-\begin{frame}[fragile]{Tabelle: GENRE}
-  \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \screenshotbox{verlag.png}{Liste der 9 deutschen Verlage}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: SPRACHE}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.46\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \begin{sqlbox}
+CREATE TABLE sprache (
+    sprache_id  INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    bezeichnung VARCHAR(50) NOT NULL
+        UNIQUE,
+    iso_code    CHAR(2) NOT NULL UNIQUE
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.50\textwidth}
+  \textbf{Testfall:} \texttt{SELECT bezeichnung, iso\_code FROM sprache WHERE bezeichnung = 'Deutsch';} $\to$ ('Deutsch', 'DE')
+
+  \screenshotbox{sprache.png}{Ergebniszeile ('Deutsch', 'DE')}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tabelle: GENRE}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.46\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE genre (
+    genre_id    INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    bezeichnung VARCHAR(50) NOT NULL
+        UNIQUE
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.50\textwidth}
+  \textbf{Testfall:} Alle Buecher im Genre \emph{Roman} per JOIN \texttt{buch\_genre} -- 5 Treffer
+  (Die Verwandlung, Der Steppenwolf, Der Zauberberg, Das Geisterhaus, Schachnovelle).
+
+  \screenshotbox{genre.png}{Liste der 5 Roman-Buecher}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tabelle: AUTOR}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.46\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE autor (
+    autor_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    vorname  VARCHAR(50) NOT NULL,
+    nachname VARCHAR(50) NOT NULL
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.50\textwidth}
+  \textbf{Testfall:} Alle Buecher von Franz Kafka per JOIN \texttt{buch\_autor} $\to$ \emph{Die Verwandlung}.
+
+  \screenshotbox{autor.png}{Ergebnis: Die Verwandlung}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tabelle: BUCH}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE buch (
+    buch_id   INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    titel     VARCHAR(150) NOT NULL,
+    verlag_id INTEGER
+        REFERENCES verlag(verlag_id),
+    sprache_id INTEGER NOT NULL
+        REFERENCES sprache(sprache_id),
+    erscheinungsjahr INTEGER NOT NULL
+        CHECK (erscheinungsjahr
+               BETWEEN 1450 AND 2100)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Werk-Stammdaten inkl. Verlag/Sprache per JOIN -- 12 Buecher, z.\,B.
+  ('Die Verwandlung', 'Fischer Verlag', 'Deutsch', 1915).
+
+  \screenshotbox{buch.png}{Tabelle mit 12 Buechern inkl. Verlag und Sprache}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tabelle: BUCHEXEMPLAR}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE buchexemplar (
+    exemplar_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    buch_id INTEGER NOT NULL
+        REFERENCES buch(buch_id),
+    eigentuemer_id INTEGER NOT NULL
+        REFERENCES nutzer(nutzer_id)
+        ON DELETE CASCADE,
+    zustand VARCHAR(20) NOT NULL
+        CHECK (zustand IN ('neu','gut',
+            'gebraucht','stark gebraucht')),
+    erstellt_am DATE NOT NULL
+        DEFAULT CURRENT_DATE
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Beide Exemplare des Werks \emph{1984} -- Eigentuemer Hannah Vogel (neu) und
+  Anna Bauer (gut). Zeigt den Mehrwert der Trennung Buch/Buchexemplar aus dem Tutor-Feedback.
+
+  \screenshotbox{buchexemplar.png}{Zwei Exemplare von 1984 mit unterschiedlichen Eigentuemer:innen}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: ZEITSLOT}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.46\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \begin{sqlbox}
+CREATE TABLE zeitslot (
+    zeitslot_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    datum     DATE NOT NULL,
+    startzeit TIME NOT NULL,
+    endzeit   TIME NOT NULL,
+    CHECK (startzeit < endzeit)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.50\textwidth}
+  \textbf{Testfall:} Freie Zeitslots am 2026-10-02 $\to$ 10:00--11:00 und 16:00--17:00.
+
+  \screenshotbox{zeitslot.png}{Zwei Zeitslots am 2026-10-02}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: STANDORT}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \begin{sqlbox}
+CREATE TABLE standort (
+    standort_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    bezeichnung VARCHAR(100) NOT NULL,
+    strasse VARCHAR(100),
+    plz     VARCHAR(10),
+    stadt   VARCHAR(50) NOT NULL,
+    breitengrad DECIMAL(9,6) NOT NULL
+        CHECK (breitengrad BETWEEN -90 AND 90),
+    laengengrad DECIMAL(9,6) NOT NULL
+        CHECK (laengengrad BETWEEN -180 AND 180)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Standorte in Berlin $\to$ \emph{Stadtbibliothek Mitte}, Breite Strasse 30.
+
+  \screenshotbox{standort.png}{Ergebnis: Stadtbibliothek Mitte}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: VERSANDOPTION}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \begin{sqlbox}
+CREATE TABLE versandoption (
+    versandoption_id INTEGER
+        PRIMARY KEY AUTOINCREMENT,
+    exemplar_id INTEGER NOT NULL
+        UNIQUE REFERENCES
+        buchexemplar(exemplar_id)
+        ON DELETE CASCADE,
+    versandart VARCHAR(10) NOT NULL
+        CHECK (versandart IN
+            ('abholung','post','beides')),
+    kosten DECIMAL(6,2) NOT NULL
+        DEFAULT 0.00 CHECK (kosten >= 0)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Alle per Post versendbaren Exemplare (\texttt{versandart IN ('post','beides')}) -- 7 Treffer.
+
+  \screenshotbox{versandoption.png}{7 Exemplare mit Versandoption Post/Beides}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Tabelle: BENACHRICHTIGUNG}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
   \textbf{CREATE-Statement:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
-  \textbf{Testfall:}
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+  \begin{sqlbox}
+CREATE TABLE benachrichtigung (
+    benachrichtigung_id INTEGER
+        PRIMARY KEY AUTOINCREMENT,
+    nutzer_id INTEGER NOT NULL
+        REFERENCES nutzer(nutzer_id)
+        ON DELETE CASCADE,
+    typ     VARCHAR(30) NOT NULL,
+    inhalt  TEXT NOT NULL,
+    gelesen BOOLEAN NOT NULL DEFAULT 0
+        CHECK (gelesen IN (0,1)),
+    erstellt_am DATETIME NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Ungelesene Benachrichtigungen von Ivo Neumann $\to$ \emph{Ein gewuenschtes Buch ist jetzt verfuegbar.}
+
+  \screenshotbox{benachrichtigung.png}{Ungelesene Benachrichtigung von Ivo Neumann}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tabelle: BEWERTUNG}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE bewertung (
+    bewertung_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    ausleihe_id INTEGER NOT NULL
+        UNIQUE REFERENCES
+        ausleihe(ausleihe_id)
+        ON DELETE CASCADE,
+    sternebewertung INTEGER NOT NULL
+        CHECK (sternebewertung
+               BETWEEN 1 AND 5),
+    kommentar TEXT,
+    bewertungsdatum DATE NOT NULL
+        DEFAULT CURRENT_DATE
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Durchschnittsbewertung je Eigentuemer:in (GROUP BY) -- Top: Greta Klein,
+  Clara Hoffmann, Ben Fischer je 5.0. \emph{ausleihe\_id} ist UNIQUE $\to$ hoechstens eine
+  Bewertung je Ausleihe (Feedback Tutor Punkt 1).
+
+  \screenshotbox{bewertung.png}{Ranking der Eigentuemer:innen nach Durchschnittsbewertung}
+\end{column}
+\end{columns}
 \end{frame}
 
 \section{Dreifachbeziehungen}
 
-% ---- Zusaetzliche Folien fuer die 3 Dreifachbeziehungs-Tabellen ----
-\begin{frame}[fragile]{Beziehungstabelle: LEIHT\_AUS}
-  % Nutzer, Buch, Zeitslot
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+\begin{frame}[fragile]{Dreifachbeziehung: AUSLEIHE (LEIHT\_AUS)}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE ausleihe (
+    ausleihe_id INTEGER PRIMARY KEY
+        AUTOINCREMENT,
+    nutzer_id   INTEGER NOT NULL
+        REFERENCES nutzer(nutzer_id),
+    exemplar_id INTEGER NOT NULL
+        REFERENCES
+        buchexemplar(exemplar_id),
+    zeitslot_id INTEGER NOT NULL
+        REFERENCES zeitslot(zeitslot_id),
+    ausleihdatum   DATE NOT NULL,
+    rueckgabedatum DATE,
+    status VARCHAR(15) NOT NULL
+        DEFAULT 'aktiv'
+        CHECK (status IN ('aktiv',
+            'zurueckgegeben','ueberfaellig')),
+    CHECK (rueckgabedatum IS NULL OR
+           rueckgabedatum >= ausleihdatum),
+    UNIQUE (exemplar_id, zeitslot_id)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Alle abgeschlossenen Ausleihen mit Entleiher:in und Buchtitel -- 10 Treffer
+  (Nutzer:in $\times$ Buchexemplar $\times$ Zeitslot).
+
+  \screenshotbox{ausleihe.png}{10 abgeschlossene Ausleihvorgaenge}
+\end{column}
+\end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Beziehungstabelle: BEWERTET}
-  % Nutzer (Bewertende:r), Buch, Nutzer (Eigentuemer:in)
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+\begin{frame}[fragile]{Dreifachbeziehung: VERFUEGBARKEIT (VERFUEGBAR\_AN)}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.52\textwidth}
+  \textbf{CREATE-Statement:}
+  \begin{sqlbox}
+CREATE TABLE verfuegbarkeit (
+    verfuegbarkeit_id INTEGER
+        PRIMARY KEY AUTOINCREMENT,
+    exemplar_id INTEGER NOT NULL
+        REFERENCES
+        buchexemplar(exemplar_id)
+        ON DELETE CASCADE,
+    zeitslot_id INTEGER NOT NULL
+        REFERENCES zeitslot(zeitslot_id)
+        ON DELETE CASCADE,
+    standort_id INTEGER NOT NULL
+        REFERENCES standort(standort_id),
+    verfuegbar BOOLEAN NOT NULL
+        DEFAULT 1
+        CHECK (verfuegbar IN (0,1)),
+    UNIQUE (exemplar_id, zeitslot_id,
+            standort_id)
+);
+  \end{sqlbox}
+\end{column}
+\begin{column}{0.44\textwidth}
+  \textbf{Testfall:} Verfuegbare Exemplare an der \emph{Stadtbibliothek Mitte} -- kombiniert
+  Buchexemplar, Zeitslot und Standort zu einer Verfuegbarkeitsaussage.
+
+  \screenshotbox{verfuegbarkeit.png}{Verfuegbare Exemplare an der Stadtbibliothek Mitte}
+\end{column}
+\end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Beziehungstabelle: VERFÜGBAR\_AN}
-  % Buch, Zeitslot, Standort
-  \begin{lstlisting}
--- TODO
-  \end{lstlisting}
+\begin{frame}[fragile]{M:N-Verknuepfungstabellen: BUCH\_AUTOR und BUCH\_GENRE}
+  \textbf{CREATE-Statements:}
+  \begin{sqlbox}
+CREATE TABLE buch_autor (
+    buch_id   INTEGER NOT NULL REFERENCES buch(buch_id)   ON DELETE CASCADE,
+    autor_id  INTEGER NOT NULL REFERENCES autor(autor_id) ON DELETE CASCADE,
+    PRIMARY KEY (buch_id, autor_id)
+);
+CREATE TABLE buch_genre (
+    buch_id   INTEGER NOT NULL REFERENCES buch(buch_id)   ON DELETE CASCADE,
+    genre_id  INTEGER NOT NULL REFERENCES genre(genre_id) ON DELETE CASCADE,
+    PRIMARY KEY (buch_id, genre_id)
+);
+  \end{sqlbox}
+  Loesen die binaeren M:N-Beziehungen \emph{Verfasst} und \emph{Gehoert zu} aus dem ER-Modell
+  (Phase 1) relational auf. Zusammengesetzter Primaerschluessel verhindert doppelte Zuordnungen.
 \end{frame}
 
-\section{Zusammenfassung}
+\section{Constraints und Geschäftsregeln}
 
-% ---- Vorletzte Folie: Kurze Zusammenfassung der Implementierung (mind. 0,5 Seiten Inhalt) ----
+\begin{frame}[fragile]{Trigger fuer Geschaeftsregeln (nicht per CHECK abbildbar)}
+  SQLite erlaubt keine Subqueries in \texttt{CHECK}-Constraints -- Regeln, die auf andere
+  Tabellen verweisen, werden daher per \texttt{TRIGGER} durchgesetzt:
+  \begin{sqlbox}
+CREATE TRIGGER trg_ausleihe_kein_eigenausleih
+BEFORE INSERT ON ausleihe FOR EACH ROW
+WHEN NEW.nutzer_id = (SELECT eigentuemer_id FROM buchexemplar
+                       WHERE exemplar_id = NEW.exemplar_id)
+BEGIN SELECT RAISE(ABORT, 'Nutzer kann eigenes Buchexemplar nicht ausleihen'); END;
+
+CREATE TRIGGER trg_bewertung_nur_nach_rueckgabe
+BEFORE INSERT ON bewertung FOR EACH ROW
+WHEN (SELECT status FROM ausleihe WHERE ausleihe_id = NEW.ausleihe_id) != 'zurueckgegeben'
+BEGIN SELECT RAISE(ABORT, 'Bewertung nur fuer abgeschlossene Ausleihen erlaubt'); END;
+  \end{sqlbox}
+\end{frame}
+
+% Kleines Hilfsmakro fuer eine beschriftete Screenshot-Kachel (3 pro Zeile).
+\newcommand{\negshot}[3]{%
+  \begin{minipage}[t]{0.31\textwidth}
+    \centering
+    \tiny\textbf{#1}\\[2pt]
+    \IfFileExists{screenshots/#2}%
+      {\begin{shotimg}[width=\linewidth, height=2.3cm]\includegraphics[width=0.94\linewidth, height=2.1cm, keepaspectratio]{screenshots/#2}\end{shotimg}}%
+      {\begin{shotimg}[width=\linewidth, height=2.3cm, colback=black!3]\tiny\textit{Screenshot fehlt}\end{shotimg}}%
+    \par\vspace{2pt}\tiny #3
+  \end{minipage}%
+}
+
+\begin{frame}[fragile]{Negativtestfaelle: Geschaeftsregeln aktiv geprueft (1/2)}
+  Laut Tutor-Feedback wurden gezielt \emph{ungueltige} Daten getestet und tatsaechlich in
+  SQLite ausgefuehrt -- alle sechs wie erwartet abgelehnt:
+
+  \vspace{4pt}
+  \negshot{(1) Sternebewertung = 7}{negativtest1.png}{CHECK: sternebewertung BETWEEN 1 AND 5}%
+  \hfill
+  \negshot{(2) Versandkosten = -5.00}{negativtest2.png}{CHECK: kosten >= 0}%
+  \hfill
+  \negshot{(3) Zeitslot 15:00--14:00}{negativtest3.png}{CHECK: startzeit < endzeit}
+\end{frame}
+
+\begin{frame}[fragile]{Negativtestfaelle: Geschaeftsregeln aktiv geprueft (2/2)}
+  \vspace{4pt}
+  \negshot{(4) Ausleihe mit nutzer\_id = 9999}{negativtest4.png}{FOREIGN KEY constraint failed (mit \texttt{PRAGMA foreign\_keys = ON;})}%
+  \hfill
+  \negshot{(5) Eigentuemer:in leiht eigenes Exemplar}{negativtest5.png}{Trigger: Nutzer kann eigenes Buchexemplar nicht ausleihen}%
+  \hfill
+  \negshot{(6) Bewertung zu aktiver Ausleihe}{negativtest6.png}{Trigger: Bewertung nur fuer abgeschlossene Ausleihen erlaubt}
+  \vspace{6pt}
+
+  \small\textit{Hinweis:} SQLite erzwingt Fremdschluessel nur, wenn \texttt{PRAGMA foreign\_keys
+  = ON;} pro Verbindung gesetzt ist -- ohne dieses PRAGMA wuerde Test (4) faelschlich
+  durchgehen, obwohl das Schema korrekt ist.
+\end{frame}
+
+\section{Zusammenfassung und Reflexion}
+
 \begin{frame}{Zusammenfassung der Implementierung}
-  % TODO: mind. eine halbe Seite Text/Stichpunkte gemaess Aufgabenstellung.
-  % Siehe auch main.tex (KZ) in diesem Ordner fuer die ausformulierte Kurzzusammenfassung.
+  \begin{itemize}
+    \item Das ER-Modell aus Phase 1 (13 Entitaeten, 2 Dreifachbeziehungen) wurde vollstaendig
+      in SQLite als 17 physische Tabellen umgesetzt: 13 Entitaetstabellen, 2 Dreifachbeziehungs-
+      tabellen (\texttt{ausleihe}, \texttt{verfuegbarkeit}) und 2 M:N-Verknuepfungstabellen
+      (\texttt{buch\_autor}, \texttt{buch\_genre}).
+    \item Alle 17 Tabellen enthalten mindestens 10 realistische Dummy-Datensaetze
+      (insgesamt $>$ 190 Zeilen), erzeugt und verifiziert per Python-\texttt{sqlite3}-Skript.
+    \item Datenintegritaet wird durch NOT NULL, UNIQUE, Fremdschluessel (inkl. \texttt{ON
+      DELETE CASCADE} wo fachlich sinnvoll) sowie CHECK-Constraints fuer alle relevanten
+      Wertebereiche sichergestellt; zwei Trigger decken Geschaeftsregeln ab, die CHECK allein
+      nicht abbilden kann.
+    \item Fuer jede Entitaet liegt mindestens ein erfolgreicher Testfall vor; zusaetzlich
+      wurden 6 gezielt ungueltige Faelle formuliert und ausgefuehrt, die alle korrekt
+      abgelehnt wurden -- direkte Umsetzung des Tutor-Feedbacks aus Phase 1.
+  \end{itemize}
 \end{frame}
 
-% ---- Letzte Folie: Fazit / Ausblick ----
-\begin{frame}{Fazit und Ausblick}
-  % TODO: Herausforderungen, offene Punkte fuer die Finalisierungsphase.
+\begin{frame}{Herausforderungen und Erkenntnisse}
+  \small
+  \begin{itemize}
+    \item \textbf{Werk vs. Exemplar:} Erst durch das Tutor-Feedback wurde klar, dass
+      \texttt{eigentuemer\_id} nicht auf BUCH gehoert, sondern auf ein eigenes
+      BUCHEXEMPLAR -- sonst koennte ein Buchtitel nur einer Person gehoeren.
+    \item \textbf{Bewertung ohne Ausleihe verhindern:} Eine reine Dreifachbeziehung
+      Bewertender--Buch--Eigentuemer haette nicht ausgeschlossen, dass ohne echten
+      Ausleihvorgang bewertet wird. Die Kopplung ueber \texttt{ausleihe\_id} (UNIQUE)
+      loest das strukturell, nicht nur per Anwendungslogik.
+    \item \textbf{SQLite-Grenzen:} Keine nativen ENUM-Typen und keine Subqueries in
+      CHECK-Constraints -- das erzwang saubere CHECK-Listen bzw. Trigger, was die
+      Constraints expliziter macht als ein einfacher ENUM-Typ.
+    \item \textbf{Naechster Schritt (Phase 3):} Weitere Indizes fuer Abfrageperformance
+      sowie Ausbau der Umkreissuche (Haversine-Berechnung auf Basis von \texttt{standort}).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \centering
+  \Large Vielen Dank für die Aufmerksamkeit!\\[6pt]
+  \normalsize Fragen?
 \end{frame}
 
 \end{document}

@@ -52,7 +52,7 @@
 
 \textbf{Problemstellung:} Viele Menschen besitzen Bücher, die sie aktuell nicht lesen, aber nicht dauerhaft abgeben möchten. Gleichzeitig gibt es in der Nachbarschaft Bücher, die andere gerne lesen würden, ohne sie kaufen zu müssen. Ein strukturierter, lokaler Austausch scheitert bisher an fehlender Organisation: Es gibt keine zentrale Übersicht, wer welches Buch besitzt, wann und wo es abgeholt werden kann und ob eine ausleihende Person vertrauenswürdig ist.
 
-\textbf{Lösungsansatz:} Die \emph{Buchtausch-App} löst dieses Problem durch eine relationale Datenbank, die Bücher, Nutzende, Ausleihvorgänge und Bewertungen strukturiert verwaltet. Die Datenbank wird in einem SQL-basierten Datenbankmanagementsystem (z.\,B. MySQL/MariaDB) umgesetzt und in der 3. Normalform normalisiert, um Redundanzen (z.\,B. mehrfach gespeicherte Autor:innen- oder Verlagsnamen) zu vermeiden. Attribute für Geokoordinaten ermöglichen eine räumliche Umkreissuche, damit Nutzende verfügbare Bücher in ihrer Nähe auf einer Karte sehen können. Flexible Verfügbarkeitsangaben (Zeitslots, Abholorte, Versandoptionen) sowie ein Bewertungssystem schaffen die notwendige Transparenz und das Vertrauen für einen funktionierenden Austausch. Das Vorgehen orientiert sich an den drei vorgegebenen Phasen: Konzeption (ER-Modell), Erarbeitung (SQL-Implementierung mit Testdaten) und Finalisierung (Verfeinerung und Dokumentation).
+\textbf{Lösungsansatz:} Die \emph{Buchtausch-App} löst dieses Problem durch eine relationale Datenbank, die Bücher, Nutzende, Ausleihvorgänge und Bewertungen strukturiert verwaltet. Die Datenbank wird in einem SQL-basierten Datenbankmanagementsystem (z.\,B. MySQL/MariaDB) umgesetzt und in der 3. Normalform normalisiert, um Redundanzen (z.\,B. mehrfach gespeicherte Autor:innen- oder Verlagsnamen) zu vermeiden. Dabei wird zwischen dem \emph{Werk} (Buch, mit Titel/Autor:in/Genre) und dem physischen \emph{Exemplar} unterschieden, das sich im Besitz einer konkreten Person befindet -- so können mehrere Nutzende dasselbe Buch besitzen, ohne dass sich Werkdaten wiederholen. Attribute für Geokoordinaten ermöglichen eine räumliche Umkreissuche, damit Nutzende verfügbare Bücher in ihrer Nähe auf einer Karte sehen können. Flexible Verfügbarkeitsangaben (Zeitslots, Abholorte, Versandoptionen) sowie ein Bewertungssystem, das jede Bewertung eindeutig an einen tatsächlich abgeschlossenen Ausleihvorgang koppelt, schaffen die notwendige Transparenz und das Vertrauen für einen funktionierenden Austausch. Das Vorgehen orientiert sich an den drei vorgegebenen Phasen: Konzeption (ER-Modell), Erarbeitung (SQL-Implementierung mit Testdaten) und Finalisierung (Verfeinerung und Dokumentation).
 
 % =========================================================
 \section*{2. Anforderungsspezifikation}
@@ -68,17 +68,18 @@
 \subsection*{2.2 Aktionen der Rollen}
 \begin{itemize}
     \item \textbf{Gast:} Bücher/Genres durchsuchen, Umkreissuche über Kartenansicht nutzen, Registrierung durchführen.
-    \item \textbf{Registrierte:r Nutzer:in:} Profil und Adresse verwalten; Bücher mit Titel, Autor:in, Verlag, Genre, Erscheinungsjahr, Sprache und Zustand einstellen; Zeitslots, Abholort und Versandoptionen für ein Buch festlegen; Bücher suchen und ausleihen (Reservierung eines Zeitslots); Ausleihe zurückgeben; Bewertungen und Kommentare zu einer abgeschlossenen Ausleihe abgeben; Benachrichtigungen zu Ausleihstatus erhalten.
+    \item \textbf{Registrierte:r Nutzer:in:} Profil und Adresse verwalten; Bücher (Werke) mit Titel, Autor:in, Verlag, Genre, Erscheinungsjahr und Sprache anlegen und eigene Exemplare mit Zustand dazu einstellen; Zeitslots, Abholort und Versandoptionen für ein Exemplar festlegen; Bücher suchen und ein verfügbares Exemplar ausleihen (Reservierung eines Zeitslots); Ausleihe zurückgeben; nach Abschluss einer Ausleihe genau diese eine Ausleihe bewerten und kommentieren; Benachrichtigungen zu Ausleihstatus erhalten.
     \item \textbf{Administrator:in:} Nutzendenkonten sperren/entsperren, unangemessene Bewertungen oder Bucheinträge entfernen, Statistiken (Anzahl Nutzende, Bücher, Ausleihen) einsehen.
 \end{itemize}
 
 \subsection*{2.3 Benötigte Daten und Funktionen}
 \begin{itemize}
-    \item \textbf{Buchdaten:} Titel, Autor:in(nen), Verlag, Genre, Erscheinungsjahr, Sprache, Zustand.
-    \item \textbf{Ausleihbedingungen:} maximale Ausleihdauer, Abholort (Koordinaten für Kartenanzeige), verfügbare Zeitslots, Versandmöglichkeit und -kosten.
+    \item \textbf{Buchdaten (Werk):} Titel, Autor:in(nen), Verlag, Genre, Erscheinungsjahr, Sprache.
+    \item \textbf{Exemplardaten:} zugehöriges Werk, Eigentümer:in, Zustand des konkreten Exemplars.
+    \item \textbf{Ausleihbedingungen:} maximale Ausleihdauer, Abholort (Koordinaten für Kartenanzeige), verfügbare Zeitslots, Versandmöglichkeit und -kosten je Exemplar.
     \item \textbf{Nutzendendaten:} Name, Adresse, Kontaktinformationen (E-Mail, Telefon).
-    \item \textbf{Transaktionsdaten:} ausgeliehenes Buch, ausleihende und anbietende Person, Ausleih- und Rückgabedatum, Status.
-    \item \textbf{Bewertungsdaten:} Sternebewertung und Kommentar zu einer abgeschlossenen Ausleihe.
+    \item \textbf{Transaktionsdaten:} ausgeliehenes Exemplar, ausleihende und anbietende Person, Ausleih- und Rückgabedatum, Status.
+    \item \textbf{Bewertungsdaten:} Sternebewertung und Kommentar, jeweils eindeutig einem konkreten, abgeschlossenen Ausleihvorgang zugeordnet (nicht direkt einer Person-Buch-Kombination), damit nur tatsächlich erfolgte Ausleihen bewertet werden können.
     \item \textbf{Funktionen:} Volltext- und Umkreissuche (Kartenansicht auf Basis von Geokoordinaten), Verfügbarkeitsprüfung je Zeitslot, Ausleih- und Rückgabeprozess, Bewertungssystem, Benachrichtigungen.
 \end{itemize}
 
@@ -86,7 +87,9 @@
 \section*{3. Entity-Relationship-Modell}
 % =========================================================
 
-Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entitäten dar, Rauten stellen Beziehungen dar. Orange hervorgehobene Rauten kennzeichnen die drei geforderten \textbf{Dreifachbeziehungen} (Join über drei Tabellen). Die Kardinalität an einer Entität gibt an, mit wie vielen Instanzen der Gegenseite eine einzelne Instanz dieser Entität in Beziehung stehen kann (Notation: (min,\,max)).
+Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entitäten dar, Rauten stellen Beziehungen dar. Orange hervorgehobene Rauten kennzeichnen die zwei geforderten \textbf{Dreifachbeziehungen} (Join über drei Tabellen). Die Kardinalität an einer Entität gibt an, mit wie vielen Instanzen der Gegenseite eine einzelne Instanz dieser Entität in Beziehung stehen kann (Notation: (min,\,max)).
+
+Gegenüber einer ersten Skizze wurden auf Empfehlung des Feedbacks zwei Punkte gezielt geschärft: (1) \textbf{Werk vs. Exemplar} -- BUCH beschreibt nur noch das Werk (Titel, Autor:in, Verlag, Genre, Sprache), während die neue Entität \textbf{BUCHEXEMPLAR} das physische, einer Person gehörende Exemplar mit Zustand abbildet. So können mehrere Nutzende dasselbe Buch besitzen. (2) \textbf{Bewertung an Ausleihe gekoppelt} -- statt einer eigenständigen Dreifachbeziehung zwischen Bewertendem, Buch und Eigentümer:in wird BEWERTUNG über eine binäre (1,1)--(0,1)-Beziehung direkt an die konkrete Ausleihe (LEIHT\_AUS) angehängt. Da LEIHT\_AUS über einen eigenen Schlüssel (\texttt{ausleihe\_id}) verfügt und damit eindeutig identifizierbar ist, kann die Beziehung selbst als Aggregation an einer weiteren Beziehung teilnehmen. Dadurch ist strukturell ausgeschlossen, dass eine Bewertung ohne zugehörigen, abgeschlossenen Ausleihvorgang existiert.
 
 \begin{center}
 \resizebox{\textwidth}{!}{%
@@ -99,34 +102,39 @@ Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entit
 ]
 
 % ---- Entitäten (Rechtecke) ----
-\node[ent] (adresse)   at (1.5, 12)  {ADRESSE};
-\node[ent] (nutzer)    at (7, 12)    {NUTZER};
-\node[ent] (benachr)   at (13.5, 12) {BENACHRICH-\\TIGUNG};
+\node[ent] (adresse)   at (1.5, 13.2) {ADRESSE};
+\node[ent] (nutzer)    at (7, 13.2)   {NUTZER};
+\node[ent] (benachr)   at (13.5, 13.2){BENACHRICH-\\TIGUNG};
 
-\node[ent] (verlag)    at (1, 8.3)   {VERLAG};
-\node[ent] (autor)     at (1, 6)     {AUTOR};
-\node[ent] (buch)      at (7, 6.3)   {BUCH};
-\node[ent] (sprache)   at (14, 8.3)  {SPRACHE};
-\node[ent] (genre)     at (14, 6)    {GENRE};
+\node[ent] (verlag)    at (1, 10)     {VERLAG};
+\node[ent] (buch)      at (5.5, 10)   {BUCH};
+\node[ent] (sprache)   at (12.5, 10)  {SPRACHE};
 
-\node[ent] (versand)   at (14, 3.2)  {VERSAND-\\OPTION};
-\node[ent] (zeitslot)  at (2.5, 1.2) {ZEITSLOT};
-\node[ent] (standort)  at (11, 1.2)  {STANDORT};
+\node[ent] (autor)     at (1, 7)      {AUTOR};
+\node[ent] (exemplar)  at (5.5, 7)    {BUCH-\\EXEMPLAR};
+\node[ent] (genre)     at (12.5, 7)   {GENRE};
+
+\node[ent] (versand)   at (12.8, 4.3) {VERSAND-\\OPTION};
+
+\node[ent] (bewertung) at (0.6, 4.3)  {BEWERTUNG};
+\node[ent] (zeitslot)  at (6.3, 1.2)  {ZEITSLOT};
+\node[ent] (standort)  at (12.8, 1.2) {STANDORT};
 
 % ---- Binäre Beziehungen (graue Rauten) ----
-\node[rel] (wohnt)   at (4, 12)     {WOHNT\\AN};
-\node[rel] (erhaelt) at (10.3, 12)  {ERHÄLT};
-\node[rel] (besitzt) at (7, 9.3)    {BESITZT};
-\node[rel] (veroeff) at (3.2, 8)    {VERÖFFENT-\\LICHT};
-\node[rel] (verfasst)at (3.2, 6.4)  {VERFASST};
-\node[rel] (geschr)  at (10.8, 8)   {GESCHRIEBEN\\IN};
-\node[rel] (gehoert) at (10.8, 6.4) {GEHÖRT\\ZU};
-\node[rel] (bietet)  at (10.8, 4.1) {BIETET};
+\node[rel] (wohnt)   at (4, 13.2)    {WOHNT\\AN};
+\node[rel] (erhaelt) at (10.3, 13.2) {ERHÄLT};
+\node[rel] (besitzt) at (7.6, 11.2)  {BESITZT};
+\node[rel] (veroeff) at (3.2, 10)    {VERÖFFENT-\\LICHT};
+\node[rel] (verfasst)at (3.2, 8.5)   {VERFASST};
+\node[rel] (istexpl) at (5.5, 8.5)   {IST\\EXEMPLAR\\VON};
+\node[rel] (geschr)  at (9, 10)      {GESCHRIEBEN\\IN};
+\node[rel] (gehoert) at (9, 8.5)     {GEHÖRT\\ZU};
+\node[rel] (bietet)  at (9.3, 5.8)   {BIETET};
+\node[rel] (bewertet) at (3.3, 4.3)  {BEWERTET};
 
 % ---- Ternäre Beziehungen (orange, hervorgehoben) ----
-\node[trel] (bewertet)    at (13, 9.7) {BEWERTET};
-\node[trel] (leiht)       at (5.7, 3.2) {LEIHT\\AUS};
-\node[trel] (verfuegbar)  at (7, 1.2)  {VERFÜGBAR\\AN};
+\node[trel] (leiht)       at (6.3, 4.3)  {LEIHT\\AUS};
+\node[trel] (verfuegbar)  at (9.3, 1.2)  {VERFÜGBAR\\AN};
 
 % ---- Kanten: binäre Beziehungen ----
 \draw (nutzer) -- (wohnt) node[lbl, pos=0.5] {(1,N)};
@@ -135,8 +143,8 @@ Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entit
 \draw (nutzer) -- (erhaelt) node[lbl, pos=0.5] {(0,N)};
 \draw (erhaelt) -- (benachr) node[lbl, pos=0.5] {(1,1)};
 
-\draw (nutzer) -- (besitzt) node[lbl, pos=0.5] {(0,N)};
-\draw (besitzt) -- (buch) node[lbl, pos=0.5] {(1,1)};
+\draw (nutzer.south) -- (besitzt.north) node[lbl, pos=0.4] {(0,N)};
+\draw (besitzt) .. controls (8.5,9.5) and (7.3,7.6) .. (exemplar.east) node[lbl, pos=0.8] {(1,1)};
 
 \draw (buch) -- (verfasst) node[lbl, pos=0.5] {(1,N)};
 \draw (verfasst) -- (autor) node[lbl, pos=0.5] {(1,N)};
@@ -144,28 +152,30 @@ Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entit
 \draw (buch) -- (veroeff) node[lbl, pos=0.5] {(1,1)};
 \draw (veroeff) -- (verlag) node[lbl, pos=0.3] {(0,N)};
 
-\draw (buch) -- (gehoert) node[lbl, pos=0.5] {(1,N)};
-\draw (gehoert) -- (genre) node[lbl, pos=0.5] {(0,N)};
+\draw (buch) -- (gehoert) node[lbl, pos=0.3] {(1,N)};
+\draw (gehoert) -- (genre) node[lbl, pos=0.7] {(0,N)};
 
 \draw (buch) -- (geschr) node[lbl, pos=0.5] {(1,1)};
 \draw (geschr) -- (sprache) node[lbl, pos=0.5] {(0,N)};
 
-\draw (buch) -- (bietet) node[lbl, pos=0.5] {(0,1)};
-\draw (bietet) -- (versand) node[lbl, pos=0.5] {(1,1)};
+\draw (buch) -- (istexpl) node[lbl, pos=0.5] {(1,N)};
+\draw (istexpl) -- (exemplar) node[lbl, pos=0.5] {(1,1)};
+
+\draw (exemplar) -- (bietet) node[lbl, pos=0.4] {(0,1)};
+\draw (bietet) -- (versand) node[lbl, pos=0.6] {(1,1)};
 
 % ---- Kanten: ternäre Beziehungen ----
-% LEIHT AUS: Nutzer (Entleiher) - Buch - Zeitslot
-\draw (nutzer.south) .. controls (6.5,8) and (5.5,5) .. (leiht.north) node[lbl, pos=0.45] {Entleiher:in\\(0,N)};
-\draw (buch) -- (leiht) node[lbl, pos=0.5] {(0,N)};
+% LEIHT AUS: Nutzer (Entleiher) - Buchexemplar - Zeitslot
+\draw (nutzer.west) .. controls (-1,10) and (-0.8,6) .. (leiht.north west) node[lbl, pos=0.42] {Entleiher:in\\(0,N)};
+\draw (exemplar) -- (leiht) node[lbl, pos=0.5] {(0,N)};
 \draw (leiht) -- (zeitslot) node[lbl, pos=0.5] {(1,1)};
 
-% BEWERTET: Nutzer (Bewertende:r) - Buch - Nutzer (Eigentümer:in)
-\draw (nutzer.south east) .. controls (9,10.8) and (11.5,10.6) .. (bewertet.north west) node[lbl, pos=0.3] {Bewertende:r (0,N)};
-\draw (nutzer.south east) .. controls (9.5,9.8) and (11.2,9.7) .. (bewertet.west) node[lbl, pos=0.6] {Eigentümer:in (0,N)};
-\draw (buch.east) .. controls (11,7) and (12.5,8.3) .. (bewertet.south) node[lbl, pos=0.25] {(0,N)};
+% BEWERTET: LEIHT_AUS (Aggregation) - BEWERTUNG
+\draw (leiht) -- (bewertet) node[lbl, pos=0.5] {(1,1)};
+\draw (bewertet) -- (bewertung) node[lbl, pos=0.5] {(0,1)};
 
-% VERFÜGBAR AN: Buch - Zeitslot - Standort
-\draw (buch) -- (verfuegbar) node[lbl, pos=0.3] {(0,N)};
+% VERFÜGBAR AN: Buchexemplar - Zeitslot - Standort
+\draw (exemplar.south east) .. controls (10,6) and (9.6,3) .. (verfuegbar.north) node[lbl, pos=0.75] {(0,N)};
 \draw (zeitslot) -- (verfuegbar) node[lbl, pos=0.5] {(1,1)};
 \draw (verfuegbar) -- (standort) node[lbl, pos=0.5] {(0,N)};
 
@@ -173,7 +183,7 @@ Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entit
 }
 \end{center}
 
-\textit{Hinweis:} Die binären M:N-Beziehungen \emph{Verfasst} (Buch--Autor) und \emph{Gehört zu} (Buch--Genre) werden bei der relationalen Umsetzung in Phase 2 als eigene Verknüpfungstabellen (\texttt{Buch\_Autor}, \texttt{Buch\_Genre}) aufgelöst.
+\textit{Hinweis:} Die binären M:N-Beziehungen \emph{Verfasst} (Buch--Autor) und \emph{Gehört zu} (Buch--Genre) werden bei der relationalen Umsetzung in Phase 2 als eigene Verknüpfungstabellen (\texttt{Buch\_Autor}, \texttt{Buch\_Genre}) aufgelöst. Die Beziehung \emph{Besitzt} wurde von BUCH auf BUCHEXEMPLAR verlagert, da der Besitz einer physischen Kopie und nicht dem Werk selbst zugeordnet ist.
 
 % =========================================================
 \section*{4. Datenwörterbuch}
@@ -188,15 +198,17 @@ Das folgende ER-Modell ist in Chen-Notation dargestellt. Rechtecke stellen Entit
 \endhead
 NUTZER & \underline{nutzer\_id} (INT), vorname (VARCHAR(50)), nachname (VARCHAR(50)), email (VARCHAR(100), UNIQUE), passwort\_hash (VARCHAR(255)), telefon (VARCHAR(20)), rolle (ENUM: nutzer/admin), registriert\_am (DATE) \\
 ADRESSE & \underline{adresse\_id} (INT), \textit{nutzer\_id} (INT), strasse (VARCHAR(100)), hausnummer (VARCHAR(10)), plz (VARCHAR(10)), stadt (VARCHAR(50)), land (VARCHAR(50)) \\
-BUCH & \underline{buch\_id} (INT), titel (VARCHAR(150)), \textit{eigentuemer\_id} (INT), \textit{verlag\_id} (INT), \textit{sprache\_id} (INT), erscheinungsjahr (YEAR), zustand (ENUM: neu/gut/gebraucht/stark~gebraucht), erstellt\_am (DATE) \\
+BUCH & \underline{buch\_id} (INT), titel (VARCHAR(150)), \textit{verlag\_id} (INT), \textit{sprache\_id} (INT), erscheinungsjahr (YEAR) \\
+BUCHEXEMPLAR & \underline{exemplar\_id} (INT), \textit{buch\_id} (INT), \textit{eigentuemer\_id} (INT), zustand (ENUM: neu/gut/gebraucht/stark~gebraucht), erstellt\_am (DATE) \\
 AUTOR & \underline{autor\_id} (INT), vorname (VARCHAR(50)), nachname (VARCHAR(50)) \\
 VERLAG & \underline{verlag\_id} (INT), name (VARCHAR(100)), land (VARCHAR(50)) \\
 GENRE & \underline{genre\_id} (INT), bezeichnung (VARCHAR(50)) \\
 SPRACHE & \underline{sprache\_id} (INT), bezeichnung (VARCHAR(50)), iso\_code (CHAR(2)) \\
 ZEITSLOT & \underline{zeitslot\_id} (INT), datum (DATE), startzeit (TIME), endzeit (TIME) \\
 STANDORT & \underline{standort\_id} (INT), bezeichnung (VARCHAR(100)), strasse (VARCHAR(100)), plz (VARCHAR(10)), stadt (VARCHAR(50)), breitengrad (DECIMAL(9,6)), laengengrad (DECIMAL(9,6)) \\
-VERSANDOPTION & \underline{versandoption\_id} (INT), \textit{buch\_id} (INT), versandart (ENUM: abholung/post/beides), kosten (DECIMAL(6,2)) \\
+VERSANDOPTION & \underline{versandoption\_id} (INT), \textit{exemplar\_id} (INT), versandart (ENUM: abholung/post/beides), kosten (DECIMAL(6,2)) \\
 BENACHRICHTIGUNG & \underline{benachrichtigung\_id} (INT), \textit{nutzer\_id} (INT), typ (VARCHAR(30)), inhalt (TEXT), gelesen (BOOLEAN), erstellt\_am (DATETIME) \\
+BEWERTUNG & \underline{bewertung\_id} (INT), \textit{ausleihe\_id} (INT, UNIQUE), sternebewertung (TINYINT, 1--5), kommentar (TEXT), bewertungsdatum (DATE) \\
 \bottomrule
 \end{longtable}
 }
@@ -208,14 +220,13 @@ BENACHRICHTIGUNG & \underline{benachrichtigung\_id} (INT), \textit{nutzer\_id} (
 \textbf{Beziehung} & \textbf{Verknüpfte Entitäten} & \textbf{Attribute (Typ)} \\
 \midrule
 \endhead
-LEIHT\_AUS & Nutzer, Buch, Zeitslot & \underline{ausleihe\_id} (INT), ausleihdatum (DATE), rueckgabedatum (DATE, NULLABLE), status (ENUM: aktiv/zurückgegeben/überfällig) \\
-BEWERTET & Nutzer (Bewertende:r), Buch, Nutzer (Eigentümer:in) & \underline{bewertung\_id} (INT), sternebewertung (TINYINT, 1--5), kommentar (TEXT), bewertungsdatum (DATE) \\
-VERFÜGBAR\_AN & Buch, Zeitslot, Standort & \underline{verfuegbarkeit\_id} (INT), verfuegbar (BOOLEAN) \\
+LEIHT\_AUS & Nutzer, Buchexemplar, Zeitslot & \underline{ausleihe\_id} (INT), ausleihdatum (DATE), rueckgabedatum (DATE, NULLABLE), status (ENUM: aktiv/zurückgegeben/überfällig) \\
+VERFÜGBAR\_AN & Buchexemplar, Zeitslot, Standort & \underline{verfuegbarkeit\_id} (INT), verfuegbar (BOOLEAN) \\
 \bottomrule
 \end{longtable}
 }
 
 \vspace{2pt}
-\textit{Alle drei Beziehungen sind echte Dreifachbeziehungen: Eine einzelne Beziehungsinstanz wird erst durch die gleichzeitige Kombination aller drei beteiligten Entitäten eindeutig bestimmt (z.\,B. entsteht ein Ausleihvorgang erst durch die Kombination aus Nutzer:in, Buch \emph{und} Zeitslot).}
+\textit{Beide Beziehungen sind echte Dreifachbeziehungen: Eine einzelne Beziehungsinstanz wird erst durch die gleichzeitige Kombination aller drei beteiligten Entitäten eindeutig bestimmt (z.\,B. entsteht ein Ausleihvorgang erst durch die Kombination aus Nutzer:in, Buchexemplar \emph{und} Zeitslot). Die Entität \textbf{BEWERTUNG} (siehe 4.1) ist bewusst \emph{keine} Dreifachbeziehung mehr, sondern über die eindeutige \textit{ausleihe\_id} an genau einen LEIHT\_AUS-Datensatz gekoppelt (Aggregation): Bewertende:r und Eigentümer:in ergeben sich implizit aus dieser Ausleihe und dem zugehörigen Buchexemplar, sodass nur tatsächlich abgeschlossene Ausleihen bewertet werden können.}
 
 \end{document}

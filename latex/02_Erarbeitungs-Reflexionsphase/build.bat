@@ -24,10 +24,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-call :compile main.tex KZ
+call :compile main.tex KZ pdflatex
 if errorlevel 1 goto :fehler
 
-call :compile presentation.tex PR
+rem presentation.tex nutzt das metropolis-Theme (Beamer) -- benoetigt XeLaTeX.
+call :compile presentation.tex PR xelatex
 if errorlevel 1 goto :fehler
 
 echo.
@@ -39,11 +40,12 @@ exit /b 0
 :compile
 set "TEXFILE=%~1"
 set "TYP=%~2"
+set "ENGINE=%~3"
 set "OUTNAME=%NACHNAME%-%VORNAME%_%MATRIKEL%_%KURS%_%PHASE%_%TYP%"
-echo Kompiliere %TEXFILE% -^> %OUTNAME%.pdf
-pdflatex -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%"
+echo Kompiliere %TEXFILE% -^> %OUTNAME%.pdf (%ENGINE%)
+%ENGINE% -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%"
 if errorlevel 1 exit /b 1
-pdflatex -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%" >nul
+%ENGINE% -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%" >nul
 del /q "%OUTNAME%.aux" "%OUTNAME%.log" "%OUTNAME%.out" "%OUTNAME%.nav" "%OUTNAME%.snm" "%OUTNAME%.toc" "%OUTNAME%.vrb" 2>nul
 exit /b 0
 

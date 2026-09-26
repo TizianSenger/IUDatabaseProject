@@ -29,31 +29,26 @@
 % =========================================================
 \section*{1. Verwendetes Datenbankmanagementsystem}
 % =========================================================
-% TODO: Welches DBMS wurde gewaehlt (z. B. MySQL/MariaDB/PostgreSQL) und warum?
+Für die Umsetzung wurde \textbf{SQLite 3} gewählt. Die Aufgabenstellung erlaubt ausdrücklich jedes Datenbankmanagementsystem, das SQL als Basissprache verwendet -- SQLite erfüllt das vollständig (Standard-DDL/DML, \texttt{JOIN}s, \texttt{FOREIGN KEY}, \texttt{CHECK}, \texttt{TRIGGER}). Der Ausschlag für SQLite war die serverlose Architektur: Die gesamte Datenbank liegt als einzelne Datei vor, benötigt keine Installation eines Datenbankservers und lässt sich direkt über eine VS-Code-Erweiterung einsehen, was Nachvollziehbarkeit und Weitergabe (z.\,B. im GitHub-Repository) erheblich vereinfacht. Da SQLite keine nativen \texttt{ENUM}-Typen kennt, wurden alle ehemals als ENUM geplanten Felder (Rolle, Zustand, Status, Versandart) konsequent über \texttt{CHECK}-Constraints mit erlaubter Werteliste abgebildet -- eine direkte Umsetzung des Tutor-Feedbacks zu konsequenten Constraints.
 
 % =========================================================
 \section*{2. Umsetzung des ER-Modells}
 % =========================================================
-% TODO: Kurz beschreiben, wie die 11 Entitaeten aus Phase 1 als Tabellen umgesetzt wurden,
-% wie die binaeren M:N-Beziehungen (Verfasst, Gehoert zu) als Verknuepfungstabellen aufgeloest wurden
-% und wie die drei Dreifachbeziehungen (Leiht_aus, Bewertet, Verfuegbar_an) als eigene Tabellen
-% mit Fremdschluesseln auf alle drei beteiligten Tabellen realisiert wurden.
+Die 13 Entitäten aus dem überarbeiteten ER-Modell (Phase 1) wurden 1:1 als Tabellen umgesetzt. Die binären M:N-Beziehungen \emph{Verfasst} (Buch--Autor) und \emph{Gehört zu} (Buch--Genre) wurden als eigene Verknüpfungstabellen \texttt{buch\_autor} und \texttt{buch\_genre} mit zusammengesetztem Primärschlüssel aufgelöst. Die zwei Dreifachbeziehungen \texttt{LEIHT\_AUS} und \texttt{VERFÜGBAR\_AN} wurden als eigene Tabellen (\texttt{ausleihe}, \texttt{verfuegbarkeit}) mit Fremdschlüsseln auf alle drei beteiligten Tabellen realisiert. Die Entität \texttt{BEWERTUNG} trägt statt einer eigenen Dreifachbeziehung einen eindeutigen (UNIQUE) Fremdschlüssel \texttt{ausleihe\_id} und ist damit strukturell an genau einen abgeschlossenen Ausleihvorgang gekoppelt (Tutor-Feedback Punkt 1). Zwei Trigger -- einer verhindert die Ausleihe eines eigenen Exemplars, der andere erlaubt eine Bewertung erst nach erfolgter Rückgabe (Details siehe .sql-Datei) -- setzen Geschäftsregeln durch, die SQLite-CHECK-Constraints allein nicht abbilden können, da diese keine Subqueries auf andere Tabellen erlauben.
 
 % =========================================================
 \section*{3. Normalisierung}
 % =========================================================
-% TODO: Kurz begruenden, warum das Schema in der 3. Normalform vorliegt
-% (keine transitiven Abhaengigkeiten, Auslagerung von Autor/Verlag/Genre/Sprache in eigene Tabellen).
+Das Schema liegt in der 3. Normalform vor: Jede Tabelle hat einen Primärschlüssel, alle Nicht-Schlüsselattribute hängen voll funktional von diesem ab (2NF), und es bestehen keine transitiven Abhängigkeiten (3NF) -- Autor, Verlag, Genre und Sprache sind konsequent in eigene Tabellen ausgelagert statt als Text in \texttt{buch} wiederholt zu werden. Die Trennung von \texttt{buch} (Werk) und \texttt{buchexemplar} (physische Kopie mit Eigentümer:in und Zustand) vermeidet zusätzlich, dass Werkdaten pro Exemplar redundant gespeichert werden müssen, wenn mehrere Nutzende dasselbe Buch besitzen.
 
 % =========================================================
-\section*{4. Dummy-Daten und Testfaelle}
+\section*{4. Dummy-Daten und Testfälle}
 % =========================================================
-% TODO: Kurz beschreiben, wie die Testdaten erzeugt wurden (mind. 10 Eintraege je Tabelle)
-% und welchen Testfall/welche Abfrage(n) zur Ueberpruefung der Datenbank verwendet wurden.
+Alle 17 Tabellen enthalten mindestens 10 Datensätze (insgesamt über 190 Zeilen), thematisch konsistent befüllt (deutschsprachige Buchklassiker, deutsche Städte/Adressen, plausible Ausleih- und Bewertungshistorie). Die Befüllung sowie sämtliche Testfälle wurden über ein Python-\texttt{sqlite3}-Skript automatisiert gegen die \texttt{.sql}-Datei ausgeführt und verifiziert. Für jede Entität liegt mindestens eine erfolgreiche Testabfrage vor (siehe Präsentation). Zusätzlich wurden gezielt \textbf{sechs ungültige Fälle} formuliert und tatsächlich ausgeführt: eine Sternebewertung außerhalb 1--5, negative Versandkosten, ein Zeitslot mit \texttt{startzeit >= endzeit}, eine Ausleihe mit nicht existierender \texttt{nutzer\_id}, eine Selbstausleihe sowie eine Bewertung zu einer noch nicht zurückgegebenen Ausleihe. Alle sechs wurden von der Datenbank korrekt mit der erwarteten Fehlermeldung abgelehnt (Tutor-Feedback Punkt 4).
 
 % =========================================================
 \section*{5. Herausforderungen und Erkenntnisse}
 % =========================================================
-% TODO: Kurze Reflexion: Was war beim Implementieren schwierig? Was wuerde man anders machen?
+Die größte konzeptionelle Herausforderung war, das Tutor-Feedback aus Phase 1 nicht nur in die Dokumentation, sondern strukturell in das Schema zu übersetzen: Ohne die Trennung von Buch und Buchexemplar hätte kein zweites Exemplar desselben Werks bei einer anderen Person abgebildet werden können; ohne die eindeutige Kopplung von Bewertung an \texttt{ausleihe\_id} wäre eine Bewertung ohne echten Ausleihvorgang möglich gewesen. SQLite erzwang zudem, Geschäftsregeln explizit zu machen: Da CHECK-Constraints keine Subqueries erlauben, mussten crossreferenzierende Regeln (kein Selbstausleih, keine verfrühte Bewertung) als Trigger formuliert werden -- was die Regeln am Ende expliziter und leichter nachvollziehbar macht als eine rein anwendungsseitige Prüfung. Für Phase 3 ist geplant, zusätzliche Indizes für die häufig gefilterten Spalten (\texttt{ausleihe.status}, \texttt{buchexemplar.buch\_id}) zu ergänzen und die Umkreissuche über eine Haversine-Berechnung auf Basis der \texttt{standort}-Koordinaten zu konkretisieren.
 
 \end{document}
