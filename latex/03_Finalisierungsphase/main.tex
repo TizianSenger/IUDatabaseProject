@@ -11,50 +11,135 @@
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{booktabs}
-\usepackage{hyperref}
-\setlist{nosep, itemsep=1pt, topsep=2pt}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\setlength{\emergencystretch}{2.5em}   % lange \texttt-Bezeichner sauber umbrechen
+\setlist{nosep, itemsep=1pt, topsep=2pt, leftmargin=1.2em}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{4pt}
 
-\title{\vspace{-1.5cm}\Large\textbf{Portfolioteil 3 -- Finalisierungsphase}\\[2pt]
-\large Funktionalität und Metadaten der Datenbank\\[2pt]
+% Kennzahlen werden automatisch erzeugt -- vorher ausfuehren:
+%   python install_db.py      -> metadaten.tex
+%   python index_benchmark.py -> benchmark_ergebnisse.tex
+\input{metadaten.tex}
+\input{benchmark_ergebnisse.tex}
+
+\title{\vspace{-1.6cm}\Large\textbf{Portfolioteil 3 -- Finalisierungsphase}\\[2pt]
+\large Funktionalität und Metadaten der Datenbank „Buchtausch-App“\\[2pt]
 \normalsize DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL}
-\author{Tizian Senger \\ Matrikelnummer: IU14143428 \\ \url{https://github.com/TizianSenger/IUDatabaseProject}}
-\date{\today}
+\author{Tizian Senger -- Matrikelnummer: IU14143428\\
+\url{https://github.com/TizianSenger/IUDatabaseProject}}
+\date{\vspace{-4pt}\today}
 
 \begin{document}
 \maketitle
-\vspace{-1cm}
+\vspace{-1.1cm}
 
 % =========================================================
-\section*{1. Funktionalität des Datenbankmanagementsystems}
+\section*{1. Funktionalität des Datenbanksystems}
 % =========================================================
-% TODO: Beschreibe hier, was die finale Datenbank kann (Buch anbieten, ausleihen,
-% Umkreissuche, Bewertungen, Benachrichtigungen etc.) und welche Verbesserungen
-% gegenueber Phase 2 aufgrund des Tutor:innen-Feedbacks vorgenommen wurden.
+Die Datenbank bildet eine lokale Buchtausch-Plattform ab, auf der Nutzende eigene Bücher zum Verleihen anbieten und Bücher anderer ausleihen. Umgesetzt ist sie in \textbf{SQLite \mdSQLite} als einzelne Datei (\texttt{buchtausch\_app.db}), die vollständig aus einem dokumentierten SQL-Skript erzeugt wird. Die Funktionalität gliedert sich in sieben Bereiche:
+\begin{itemize}
+  \item \textbf{Katalog (Werk-Ebene):} \texttt{buch} mit Verlag, Sprache und Erscheinungsjahr; Autor:innen und Genres als M:N-Beziehungen (\texttt{buch\_autor}, \texttt{buch\_genre}).
+  \item \textbf{Exemplare:} \texttt{buchexemplar} trennt das physische Buch (Eigentümer:in, Zustand) vom Werk, sodass mehrere Personen dasselbe Werk anbieten können, ohne Werkdaten zu wiederholen.
+  \item \textbf{Angebot:} Dreifachbeziehung \texttt{verfuegbarkeit} (Exemplar $\times$ Zeitslot $\times$ Standort) sowie \texttt{versandoption} für Abholung und/oder Postversand inkl. Kosten.
+  \item \textbf{Ausleihe:} Dreifachbeziehung \texttt{ausleihe} (Nutzer:in $\times$ Exemplar $\times$ Zeitslot) mit Status \emph{aktiv}, \emph{zurückgegeben} oder \emph{überfällig}.
+  \item \textbf{Bewertung:} genau eine Bewertung je abgeschlossener Ausleihe (UNIQUE-Fremdschlüssel \texttt{ausleihe\_id}, Trigger prüft die Rückgabe).
+  \item \textbf{Nutzende \& Kommunikation:} \texttt{nutzer}, \texttt{adresse} und \texttt{benachrichtigung} (z.\,B. Rückgabeerinnerung).
+  \item \textbf{Umkreissuche (neu):} Kartenansicht „Bücher in meiner Nähe“ per Haversine-Formel über die Koordinaten in \texttt{standort} (Abschnitt 2.2).
+\end{itemize}
+\textbf{Datenintegrität:} Jede Tabelle hat einen Primärschlüssel; alle Beziehungen sind als \texttt{FOREIGN KEY} (teils mit \texttt{ON DELETE CASCADE}) umgesetzt. \texttt{CHECK}-Constraints sichern Wertebereiche (Sterne 1--5, Kosten $\geq 0$, \texttt{startzeit < endzeit}, Rückgabe nicht vor Ausleihe, gültige Koordinaten, Werteliste für Status/Zustand/Rolle). Zwei Trigger erzwingen tabellenübergreifende Regeln (keine Ausleihe des eigenen Exemplars, Bewertung erst nach Rückgabe). Sechs Negativtests (ungültige Bewertung, negative Kosten, falsches Zeitfenster, unbekannte Nutzer-ID, Selbstausleihe, verfrühte Bewertung) werden vom Installationsskript bei jedem Aufbau erneut ausgeführt und korrekt abgewiesen. Laut Tutor-Feedback zu Phase~2 bestand hier kein Nachbesserungsbedarf; die Finalisierungsphase konzentrierte sich daher auf \emph{Effizienz} und \emph{räumliche Suche}.
 
 % =========================================================
-\section*{2. Metadaten der Datenbank}
+\section*{2. Verbesserungen der Finalisierungsphase}
 % =========================================================
-% TODO: Werte nach finaler Befuellung eintragen.
-\begin{center}
-\begin{tabular}{@{}ll@{}}
+\subsection*{2.1 Indizes für häufige Abfragen -- Umsetzung und Nutzennachweis}
+SQLite indiziert automatisch nur Primärschlüssel und UNIQUE-Spalten, \emph{nicht} aber Fremdschlüssel. Ausgehend von den typischen App-Abfragen wurden daher \textbf{\mdIndizes{} Indizes} angelegt, u.\,a. auf die Fremdschlüssel \texttt{eigentuemer\_id} und \texttt{buch\_id} in \texttt{buchexemplar}, einen zusammengesetzten Index \texttt{ausleihe(nutzer\_id, ausleihdatum)}, der Filter \emph{und} Sortierung abdeckt, \texttt{ausleihe(status)}, \texttt{standort(breitengrad, laengengrad)} für die Umkreissuche, einen \emph{partiellen} Index auf ungelesene Benachrichtigungen (\texttt{WHERE gelesen = 0}) sowie einen \texttt{COLLATE NOCASE}-Index für die Titelsuche. Spalten, die bereits durch einen UNIQUE- oder zusammengesetzten Primärschlüssel abgedeckt sind (z.\,B. \texttt{ausleihe.exemplar\_id}), erhielten bewusst keinen zusätzlichen Index. Anschließend erzeugt \texttt{ANALYZE} Statistiken für den Query-Planer.
+
+\textbf{Nutzennachweis:} Mit \texttt{EXPLAIN QUERY PLAN} wurde für jede Abfrage geprüft, dass der Planer den Index tatsächlich verwendet (\texttt{SCAN} $\rightarrow$ \texttt{SEARCH \dots{} USING INDEX}). Da bei 10--15 Zeilen je Tabelle kein Laufzeitunterschied messbar ist, misst das Skript \texttt{index\_benchmark.py} dieselben Abfragen auf einer separaten Kopie des Schemas mit großem synthetischem Datenbestand (\benchmeta), einmal ohne und einmal mit Indizes:
+
+\begin{center}\small
+\begin{tabular}{@{}llrrr@{}}
 \toprule
-\textbf{Metadatum} & \textbf{Wert} \\
+\textbf{Nr.} & \textbf{Abfrage} & \textbf{ohne [ms]} & \textbf{mit [ms]} & \textbf{Faktor} \\
 \midrule
-Anzahl Tabellen & TODO \\
-Anzahl Datensätze gesamt & TODO \\
-Größe der Datenbank & TODO \\
-Verwendetes DBMS & TODO \\
+\benchrows
 \bottomrule
 \end{tabular}
 \end{center}
 
+\textbf{Interpretation:} Bei selektiven Gleichheitsfiltern (Q1, Q2, Q5, Q8) wird aus einem vollständigen Tabellenscan eine B-Baum-Suche; die Abfragen werden um den Faktor 50--300 schneller. Den größten Effekt hat die Umkreissuche (Q6), weil der Geo-Index die Kandidaten auf wenige Standorte begrenzt, bevor die Trigonometrie berechnet und \texttt{verfuegbarkeit} gejoint wird. Der Status-Index zeigt die Grenzen: Bei nur drei Werten hilft er für den seltenen Status \emph{überfällig} (Q3) lediglich knapp zweifach und ist für den häufigen Status \emph{zurückgegeben} (Q4) sogar etwas langsamer als ein Scan, da jede Zeile zusätzlich über den Index gelesen wird. Er bleibt für den Mahnlauf bestehen; für Auswertungen über alle abgeschlossenen Ausleihen kann er mit \texttt{+status} gezielt umgangen werden. Indizes kosten zudem Speicher (\benchsize) und verlangsamen Schreibvorgänge (5.000 Ausleihen + 5.000 Benachrichtigungen: \benchinsert). Deshalb wurden nur Indizes für konkrete, häufige Lesezugriffe angelegt.
+
+\subsection*{2.2 Umkreissuche mit der Haversine-Formel}
+Die Entfernung zwischen Suchpunkt $(\varphi_1,\lambda_1)$ und Standort $(\varphi_2,\lambda_2)$ wird als Großkreisentfernung auf der Erdkugel ($R = 6371$\,km) direkt in SQL berechnet (Mathe-Funktionen ab SQLite 3.35):
+\[
+d = 2R \cdot \arcsin\!\sqrt{\sin^2\!\tfrac{\varphi_2-\varphi_1}{2} + \cos\varphi_1 \cos\varphi_2 \, \sin^2\!\tfrac{\lambda_2-\lambda_1}{2}}
+\]
+Die Abfrage arbeitet in drei Stufen: (1) eine \emph{Bounding Box} ($\pm r/111{,}045$\,km in der Breite, $\pm r/(111{,}045\cdot\cos\varphi_1)$ in der Länge) filtert über \texttt{idx\_standort\_geo} grob vor; (2) für die verbleibenden Kandidaten wird die exakte Haversine-Distanz berechnet und mit dem Radius verglichen; (3) die View \texttt{v\_verfuegbares\_angebot} liefert nur tatsächlich ausleihbare Exemplare, also freigegebene Einträge ohne laufende Ausleihe. Suchpunkt und Radius werden in der App als Bind-Parameter übergeben. Beispiel: Suchpunkt Düsseldorf Hbf, Radius 60\,km:
+
+\begin{center}\small
+\begin{tabular}{@{}lllr@{}}
+\toprule
+\textbf{Titel} & \textbf{Eigentümer:in} & \textbf{Standort} & \textbf{Distanz} \\
+\midrule
+Ein Skandal in Böhmen & Ben Fischer & Nachbarschaftstreff Köln & 33,0\,km \\
+Faust & Clara Hoffmann & Nachbarschaftstreff Köln & 33,0\,km \\
+1984 & Anna Bauer & Dortmunder Bucheck & 57,0\,km \\
+\bottomrule
+\end{tabular}
+\end{center}
+Die Standorte in Düsseldorf (1,4\,km) und Essen (28,3\,km) liegen zwar im Radius, erscheinen aber korrekt \emph{nicht}: Dort ist das Exemplar nicht freigegeben bzw. gerade verliehen. Die Distanzen wurden gegen bekannte Luftlinien geprüft (Düsseldorf--Köln $\approx$ 33\,km, Düsseldorf--Berlin $\approx$ 476\,km).
+
 % =========================================================
-\section*{3. GitHub-Repository}
+\section*{3. Metadaten der Datenbank}
 % =========================================================
-% TODO: Link zum GitHub-Repository mit Code, Berichten und README eintragen.
-Repository: \url{https://github.com/TODO/TODO}
+Alle Werte wurden mit SQL-Abfragen auf die finale Datenbank ermittelt (Abschnitt 9 des SQL-Skripts) und von \texttt{install\_db.py} automatisch in dieses Dokument übernommen.
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{\hspace{2.5em}}ll@{}}
+\toprule
+\textbf{Metadatum} & \textbf{Wert} & \textbf{Metadatum} & \textbf{Wert} \\
+\midrule
+DBMS & SQLite \mdSQLite & Indizes (eigene + autom.) & \mdIndizes{} + \mdAutoIndizes \\
+Tabellen & \mdTabellen{} (13 Entitäten + 4 Bez.) & Trigger / Views & \mdTrigger{} / \mdViews \\
+Datensätze gesamt & \mdDatensaetze & Seiten $\times$ Seitengröße & \mdSeiten{} $\times$ \mdSeitengroesse{} B \\
+Minimum je Tabelle & \mdMinZeilen & \textbf{Dateigröße} & \textbf{\mdBytes{} B (\mdKiB{} KiB)} \\
+\bottomrule
+\end{tabular}
+
+\vspace{8pt}
+\begin{tabular}[t]{@{}lr@{}}
+\toprule
+\textbf{Tabelle} & \textbf{Zeilen} \\
+\midrule
+\mdZeilenTabelleA
+\bottomrule
+\end{tabular}\qquad\quad
+\begin{tabular}[t]{@{}lr@{}}
+\toprule
+\textbf{Tabelle} & \textbf{Zeilen} \\
+\midrule
+\mdZeilenTabelleB
+\bottomrule
+\end{tabular}\qquad\quad
+\begin{tabular}[t]{@{}lr@{}}
+\toprule
+\textbf{Tabelle} & \textbf{Zeilen} \\
+\midrule
+\mdZeilenTabelleC
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Einordnung des Volumens:} Die Datenbankdatei ist mit \mdKiB{} KiB sehr klein. Ihre Größe wird fast vollständig von der Seitenstruktur bestimmt und nicht von den Nutzdaten: SQLite belegt für jede Tabelle und jeden Index mindestens eine eigene Seite zu 4\,KiB, auch wenn darin nur wenige hundert Byte stehen (\mdTabellen{} Tabellen + \mdIndizes{} eigene + \mdAutoIndizes{} automatische Indizes + interne Tabellen $\approx$ \mdSeiten{} Seiten). Wie das Volumen im realen Betrieb wächst, zeigt der Benchmark-Datenbestand aus Abschnitt~2.1: Bei rund 737.000 Datensätzen umfasst dieselbe Struktur \benchsize; die Indizes machen dann gut ein Viertel des Gesamtvolumens aus.
+
+% =========================================================
+\section*{4. GitHub-Repository und Lieferumfang}
+% =========================================================
+Repository (Code, Berichte aller drei Phasen, README mit Installationsanleitung):\\
+\textbf{\url{https://github.com/TizianSenger/IUDatabaseProject}}\\
+Ordner \texttt{03\_Finalisierungsphase}: finales SQL-Skript (Typ SQL), \texttt{install\_db.py} (Aufbau + Selbsttest), \texttt{index\_benchmark.py} (Nutzennachweis der Indizes), die erzeugte Datenbankdatei sowie dieses Dokument (BE), das Abstract (AB), die SQL-Dokumentation mit Installationsanleitung und Ergebnissen (SQL) und der Repository-Link (GH).
 
 \end{document}

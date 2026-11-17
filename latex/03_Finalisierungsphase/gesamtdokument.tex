@@ -1,0 +1,49 @@
+\documentclass[11pt,a4paper]{article}
+% Fasst die Ergebnisse aller drei Phasen in EINEM PDF zusammen (Aufgabenstellung 1.3:
+% "PDF-Dokument mit allen Ergebnissen aus jeder Phase einschliesslich der Folien und
+% Bildschirmfotos"). Voraussetzung: alle Einzel-PDFs wurden vorher erzeugt (build.bat).
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{pdfpages}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setcounter{secnumdepth}{0}   % Inhaltsverzeichnis ohne "0.1"-Nummern
+
+\newcommand{\Pre}{Senger-Tizian_IU14143428_DLBDSPBDM01_D}
+\newcounter{teilnr}
+\newcommand{\teil}[3]{% #1 Titel, #2 Datei, #3 Optionen
+  \stepcounter{teilnr}%
+  \IfFileExists{#2}{\includepdf[pages=-,#3,addtotoc={1,subsection,2,{#1},teil\arabic{teilnr}}]{#2}}%
+  {\clearpage\subsection*{#1}\textbf{Datei fehlt:} \texttt{\detokenize{#2}}}}
+
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+\vspace*{3cm}
+{\LARGE\textbf{Buchtausch-App -- Datenbankprojekt}}\\[8pt]
+{\Large Gesamtdokumentation aller drei Portfolio-Phasen}\\[16pt]
+DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL\\[4pt]
+Tizian Senger -- Matrikelnummer: IU14143428\\[4pt]
+\url{https://github.com/TizianSenger/IUDatabaseProject}\\[4pt]
+\today
+\end{center}
+\vspace{1.5cm}
+\tableofcontents
+\clearpage
+
+\phantomsection\addcontentsline{toc}{section}{Phase 1 -- Konzeptionsphase}
+\teil{Anforderungsspezifikation und ER-Modell (AB)}{../01_Konzeptionsphase/\Pre_Konzeptionsphase_AB.pdf}{}
+
+\phantomsection\addcontentsline{toc}{section}{Phase 2 -- Erarbeitungs-/Reflexionsphase}
+\teil{Kurze Zusammenfassung der Implementierung (KZ)}{../02_Erarbeitungs-Reflexionsphase/\Pre_Erarbeitungs-Reflexionsphase_KZ.pdf}{}
+\teil{Präsentation mit SQL-Statements, Testfällen und Screenshots (PR)}{../02_Erarbeitungs-Reflexionsphase/\Pre_Erarbeitungs-Reflexionsphase_PR.pdf}{nup=1x2,landscape=false,frame}
+
+\phantomsection\addcontentsline{toc}{section}{Phase 3 -- Finalisierungsphase}
+\teil{Abstract (AB)}{\Pre_Abschlussphase_AB.pdf}{}
+\teil{Funktionalität und Metadaten (BE)}{\Pre_Abschlussphase_BE.pdf}{}
+\teil{SQL-Dokumentation, Installationsanleitung und Ergebnisse (SQL)}{\Pre_Abschlussphase_SQL.pdf}{}
+\teil{Link zum GitHub-Repository (GH)}{\Pre_Abschlussphase_GH.pdf}{}
+\end{document}

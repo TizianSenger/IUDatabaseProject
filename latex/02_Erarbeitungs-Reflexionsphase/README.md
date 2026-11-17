@@ -23,9 +23,8 @@
   Arbeitskopie zum manuellen Nachjustieren/Präsentieren (z. B. auch in Google Slides
   importierbar). Erzeugt/aktualisiert über `python build_pptx.py` (benötigt `python-pptx`
   und `Pillow`, siehe `build_pptx.py`).
-- `screenshots/` -- hier fehlen noch die echten Screenshots aus dem DBMS (siehe
-  `screenshots/README.md` für die genaue Anleitung und erwarteten Dateinamen). Ohne sie
-  zeigt die Präsentation automatisch eine Platzhalterbox mit Erklärung statt eines Bildes.
+- `screenshots/` -- Screenshots der Testfälle aus dem DBMS (je Entität eine Testabfrage plus
+  `negativtest1.png`–`negativtest6.png`), die in der Präsentation eingebunden sind.
 
 ## So regenerierst du die PDFs
 

@@ -27,16 +27,33 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem ==== 1. Datenbank neu aufbauen + Selbsttest, erzeugt metadaten.tex ====
+rem (benchmark_ergebnisse.tex ist bereits vorhanden; neu messen mit: python index_benchmark.py)
+echo Baue Datenbank auf (install_db.py) ...
+python install_db.py --quiet
+if errorlevel 1 (
+    echo [Fehler] install_db.py fehlgeschlagen - mindestens ein Test ist nicht wie erwartet ausgegangen.
+    pause
+    exit /b 1
+)
+
+rem ==== 2. Einzeldokumente (PebblePad-Typen) ====
 call :compile main.tex BE
 if errorlevel 1 goto :fehler
-
 call :compile abstract.tex AB
+if errorlevel 1 goto :fehler
+call :compile sql_doku.tex SQL
+if errorlevel 1 goto :fehler
+call :compile github.tex GH
+if errorlevel 1 goto :fehler
+
+rem ==== 3. Gesamtdokument aller drei Phasen (bindet die PDFs oben ein) ====
+call :compile gesamtdokument.tex Gesamtdokumentation
 if errorlevel 1 goto :fehler
 
 echo.
-echo Fertig. Erzeugte Datei(en) tragen bereits den PebblePad-Abgabenamen.
-echo Vergiss nicht: SQL-Dateien (Typ SQL) und GitHub-Link-PDF (Typ GH) sowie
-echo die Ergebnisse aus Phase 1 und 2 gehoeren ebenfalls in die finale ZIP-Datei.
+echo Fertig. Erzeugte Dateien tragen bereits den PebblePad-Abgabenamen.
+echo Die Abgabe-ZIP erzeugst du mit:  powershell -ExecutionPolicy Bypass -File make_zip.ps1
 pause
 exit /b 0
 
@@ -48,7 +65,8 @@ echo Kompiliere %TEXFILE% -^> %OUTNAME%.pdf
 pdflatex -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%"
 if errorlevel 1 exit /b 1
 pdflatex -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%" >nul
-del /q "%OUTNAME%.aux" "%OUTNAME%.log" "%OUTNAME%.out" 2>nul
+pdflatex -interaction=nonstopmode -halt-on-error -jobname="%OUTNAME%" "%TEXFILE%" >nul
+del /q "%OUTNAME%.aux" "%OUTNAME%.log" "%OUTNAME%.out" "%OUTNAME%.toc" 2>nul
 exit /b 0
 
 :fehler

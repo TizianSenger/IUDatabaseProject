@@ -11,7 +11,7 @@
 
 % Schrifttyp: Arial ist proprietaer und in pdfLaTeX nicht direkt einbettbar.
 % Helvetica (helvet) ist metrisch kompatibel und die uebliche pdfLaTeX-Alternative.
-\usepackage[scaled]{helvet}
+\usepackage{helvet} % ohne [scaled], damit die Schrift exakt 11 pt hat
 \renewcommand{\familydefault}{\sfdefault}
 
 % Zeilenabstand 1,5
@@ -42,14 +42,20 @@
 {\fontsize{12}{14}\selectfont\textbf{Inhaltliche und konzeptionelle Beschreibung}}
 % =========================================================
 
-% TODO (ca. 0,75-1 Seite): Problem, Zielsetzung, Konzept und erreichtes Ergebnis
-% der Buchtausch-App-Datenbank zusammenfassend darstellen.
+Ziel des Projekts war eine relationale Datenbank für eine Buchtausch-App, über die Menschen einer lokalen Gemeinschaft Bücher, die sie gerade nicht lesen, zeitweise an Nachbar:innen verleihen. Die Datenbank muss dafür Werke, physische Exemplare, Nutzende, Abholorte, Zeitfenster, Versandoptionen, Ausleihen und Bewertungen verwalten und zusätzlich eine räumliche Suche ermöglichen: Wer die App öffnet, soll sehen, welche Bücher in der Nähe verfügbar sind.
+
+Ausgangspunkt war eine Anforderungsanalyse mit den Rollen Gast, Nutzer:in (anbietend und ausleihend) und Administrator:in, aus der ein ER-Modell mit 13 Entitäten und zwei Dreifachbeziehungen entstand. Zwei Entwurfsentscheidungen prägen das Konzept und gehen auf das Tutor-Feedback zu Phase~1 zurück. Erstens trennt das Modell das \emph{Werk} (Buch mit Titel, Verlag, Sprache, Autor:innen und Genres) vom physischen \emph{Exemplar} mit Eigentümer:in und Zustand, sodass mehrere Personen dasselbe Werk anbieten können, ohne Daten zu wiederholen. Zweitens ist jede Bewertung über einen eindeutigen Fremdschlüssel an genau einen abgeschlossenen Ausleihvorgang gebunden; Bewertungen ohne echte Ausleihe sind damit strukturell ausgeschlossen. Das Schema liegt in der dritten Normalform vor.
+
+Das Ergebnis ist eine vollständig dokumentierte Datenbank mit 17 Tabellen und über 200 Testdatensätzen. Die Datenintegrität sichern Primär- und Fremdschlüssel, UNIQUE- und CHECK-Constraints (z.\,B. Sterne 1--5, nicht negative Versandkosten, gültige Zeitfenster) sowie zwei Trigger für tabellenübergreifende Geschäftsregeln. In der Finalisierungsphase kamen elf Indizes für die häufigsten Abfragen hinzu. Ihr Nutzen wurde mit Ausführungsplänen und einem Laufzeit-Benchmark belegt, in dem selektive Abfragen 50- bis über 500-mal schneller wurden. Außerdem wurde die geforderte Umkreissuche per Haversine-Formel umgesetzt, die nur tatsächlich ausleihbare Exemplare im gewählten Radius liefert. Damit erfüllt die Lösung alle Anforderungen der Aufgabenstellung.
 
 % =========================================================
 {\fontsize{12}{14}\selectfont\textbf{Making of -- technischer Breakdown}}
 % =========================================================
 
-% TODO (ca. 0,5-0,75 Seite): Nuechterner, informativer Ueberblick ueber die technische
-% Herangehensweise: gewaehltes DBMS, Vorgehen ueber die drei Phasen, eingesetzte Tools.
+Als DBMS wurde SQLite~3 gewählt: Es ist serverlos, die gesamte Datenbank liegt in einer einzigen Datei, und es unterstützt alle benötigten SQL-Konzepte. Das erleichtert Installation, Weitergabe und Versionierung über GitHub. Weil SQLite keine ENUM-Typen und keine Unterabfragen in CHECK-Constraints kennt, wurden Wertelisten als CHECK-Constraints und tabellenübergreifende Regeln als Trigger formuliert. Die Dokumente entstanden in LaTeX, das ER-Modell mit TikZ; die Datenbank wurde in VS Code mit einer SQLite-Erweiterung geprüft.
+
+Phase~1 lieferte Anforderungen und ER-Modell, Phase~2 das SQL-Skript mit Testfällen je Entität und sechs bewusst ungültigen Datensätzen, die an Constraints und Triggern scheitern müssen. In Phase~3 wurde das Skript um Indizes, eine View und die Umkreissuche erweitert. Ein Python-Skript baut die Datenbank reproduzierbar auf und führt alle Tests automatisch aus. Ein zweites Skript misst die Indizes auf einer separaten Kopie mit rund 737.000 synthetischen Datensätzen, weil bei zehn Zeilen je Tabelle kein Unterschied messbar ist.
+
+Die wichtigste Erkenntnis ist, dass Indizes ein Kompromiss sind: Ein Index auf einer Spalte mit nur drei Statuswerten brachte kaum Vorteile und war für den häufigsten Wert sogar langsamer, während alle Indizes zusammen Speicherbedarf und Schreibzeit spürbar erhöhten. Ebenso zeigte sich, dass sich Tutor-Feedback am wirksamsten umsetzen lässt, wenn es strukturell im Schema verankert wird statt nur in der Dokumentation.
 
 \end{document}

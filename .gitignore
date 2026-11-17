@@ -1,0 +1,19 @@
+# LaTeX-Hilfsdateien
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# temporaere Benchmark-Datenbank (wird von index_benchmark.py geloescht)
+benchmark.db
+
+# interne Arbeitsanleitungen fuer die DBMS-Screenshots (keine Projektdoku)
+**/screenshots/README.md
+
+# Abgabe-ZIP (wird per make_zip.ps1 erzeugt, nicht versionieren)
+*.zip

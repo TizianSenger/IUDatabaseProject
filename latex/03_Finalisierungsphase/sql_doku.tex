@@ -1,0 +1,196 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Encoding & Sprache ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{lmodern}
+
+% ---------- Layout ----------
+\usepackage[margin=2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep, itemsep=2pt, topsep=3pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\emergencystretch}{2.5em}
+
+\input{metadaten.tex}
+\input{benchmark_ergebnisse.tex}
+
+\lstdefinestyle{sql}{
+  language=SQL, basicstyle=\ttfamily\scriptsize, keywordstyle=\color{blue!60!black}\bfseries,
+  commentstyle=\color{gray}, stringstyle=\color{teal!70!black}, columns=fullflexible,
+  breaklines=true, frame=single, rulecolor=\color{gray!40}, numbers=left,
+  numberstyle=\tiny\color{gray}, upquote=true, morekeywords={PRAGMA,TRIGGER,RAISE,ANALYZE,EXPLAIN,QUERY,PLAN,AUTOINCREMENT,VIEW,WITH,COLLATE,NOCASE,ESCAPE},
+  literate={ö}{{\"o}}1 {ä}{{\"a}}1 {ü}{{\"u}}1 {Ö}{{\"O}}1 {Ä}{{\"A}}1 {Ü}{{\"U}}1 {ß}{{\ss}}1
+}
+\lstdefinestyle{shell}{basicstyle=\ttfamily\small, frame=single, rulecolor=\color{gray!40},
+  backgroundcolor=\color{gray!6}, columns=fullflexible, breaklines=true}
+
+% Screenshot aus dem DBMS einbinden; fehlt die Datei, erscheint ein Platzhalter.
+% Optionales 1. Argument: maximale Bildhoehe (Standard 7cm; hochkante Bilder brauchen mehr).
+\newcommand{\shot}[3][7cm]{%
+  \begin{center}
+  \IfFileExists{screenshots/#2}{%
+    \includegraphics[width=0.92\textwidth,height=#1,keepaspectratio]{screenshots/#2}}{%
+    \fbox{\parbox[c][2.2cm][c]{0.88\textwidth}{\centering\small
+      Platzhalter: Screenshot \texttt{screenshots/#2} fehlt noch\\(siehe \texttt{screenshots/README.md})}}}\\[2pt]
+  {\small\textit{#3}}
+  \end{center}}
+
+\title{\vspace{-1.5cm}\Large\textbf{Portfolioteil 3 -- SQL-Dokumentation}\\[2pt]
+\large SQL-Dateien, Installationsanleitung und Ergebnisse der Finalisierungsphase\\[2pt]
+\normalsize DLBDSPBDM01\_D -- Data-Mart-Erstellung in SQL}
+\author{Tizian Senger -- Matrikelnummer: IU14143428\\
+\url{https://github.com/TizianSenger/IUDatabaseProject}}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-0.8cm}
+\tableofcontents
+
+% =========================================================
+\section{Dateien}
+% =========================================================
+\begin{center}\small
+\begin{tabular}{@{}p{0.47\textwidth}p{0.47\textwidth}@{}}
+\toprule
+\textbf{Datei (Ordner \texttt{03\_Finalisierungsphase})} & \textbf{Inhalt} \\
+\midrule
+\texttt{Senger-Tizian\_IU14143428\_DLBDSPBDM01\_D\_\allowbreak Abschlussphase\_SQL.sql} & Finales, eigenständiges SQL-Skript: Schema, Trigger, Dummy-Daten, Testfälle, Indizes, View, Umkreissuche, Metadaten (Anhang~A). \\
+\texttt{install\_db.py} & Baut \texttt{buchtausch\_app.db} auf, führt alle Abfragen und die sechs Negativtests aus, schreibt \texttt{metadaten.tex}. \\
+\texttt{index\_benchmark.py} & Nutzennachweis der Indizes auf einer separaten Benchmark-Datenbank (Abschnitt~4.3). \\
+\texttt{buchtausch\_app.db} & Fertig erzeugte SQLite-Datenbank (\mdKiB{} KiB). \\
+\texttt{benchmark\_ergebnisse.md} & Vollständige Benchmark-Ergebnisse inkl. aller Ausführungspläne. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% =========================================================
+\section{Installationsanleitung}
+% =========================================================
+\textbf{Voraussetzung:} SQLite ab Version 3.35 (für die Mathe-Funktionen \texttt{sin}, \texttt{cos}, \texttt{asin}, \texttt{radians} der Haversine-Formel). Ein Datenbankserver ist nicht nötig.
+
+\textbf{Variante A -- Python (empfohlen, keine Zusatzinstallation):} Python~3 bringt das Modul \texttt{sqlite3} bereits mit.
+\begin{lstlisting}[style=shell]
+cd latex/03_Finalisierungsphase
+python install_db.py          # DB aufbauen + alle Tests ausgeben
+python install_db.py --quiet  # nur Aufbau + Kurzbericht (Negativtests)
+python index_benchmark.py     # optional: Index-Benchmark (ca. 1 Minute)
+\end{lstlisting}
+Das Skript beendet sich mit Exit-Code~0, wenn alle sechs Negativtests wie erwartet scheitern.
+
+\textbf{Variante B -- SQLite-Kommandozeile:}
+\begin{lstlisting}[style=shell]
+sqlite3 buchtausch_app.db < Senger-Tizian_IU14143428_DLBDSPBDM01_D_Abschlussphase_SQL.sql
+\end{lstlisting}
+
+\textbf{Variante C -- grafisch:} Die mitgelieferte \texttt{buchtausch\_app.db} direkt in einem SQLite-Werkzeug öffnen (z.\,B. DB Browser for SQLite oder eine VS-Code-SQLite-Erweiterung) und die Abfragen aus dem Skript einzeln ausführen.
+
+\textbf{Wichtig -- Fremdschlüssel:} SQLite setzt \texttt{FOREIGN KEY}-Constraints nur durch, wenn in \emph{derselben Verbindung} vorher \texttt{PRAGMA foreign\_keys = ON;} ausgeführt wurde. Das Skript und \texttt{install\_db.py} tun das automatisch. In grafischen Werkzeugen, die je Abfrage eine neue Verbindung öffnen, muss das PRAGMA vor dem FK-Negativtest im selben Abfragefenster stehen.
+
+% =========================================================
+\section{Aufbau des SQL-Skripts}
+% =========================================================
+\begin{enumerate}
+  \item PRAGMA-Einstellungen
+  \item \texttt{CREATE TABLE} für \mdTabellen{} Tabellen mit PK, FK, UNIQUE, CHECK, NOT NULL, DEFAULT
+  \item \mdTrigger{} Trigger für tabellenübergreifende Geschäftsregeln
+  \item Dummy-Daten (\mdDatensaetze{} Datensätze, mindestens \mdMinZeilen{} je Tabelle)
+  \item Testfälle: (a) eine erfolgreiche Abfrage je Entität, (b) sechs Negativtests
+  \item \textbf{neu:} \mdIndizes{} Indizes + \texttt{ANALYZE}
+  \item \textbf{neu:} View \texttt{v\_verfuegbares\_angebot} und Umkreissuche per Haversine
+  \item \textbf{neu:} Testfälle zu Umkreissuche und Index-Nutzung (\texttt{EXPLAIN QUERY PLAN})
+  \item \textbf{neu:} Metadaten-Abfragen (Tabellen, Datensätze, Dateigröße)
+\end{enumerate}
+Abschnitte 1--5 sind inhaltlich unverändert aus Phase~2 übernommen; die Phase-2-Abgabe liegt unverändert in \texttt{02\_Erarbeitungs-Reflexionsphase}.
+
+% =========================================================
+\section{Ergebnisse der Finalisierungsphase}
+% =========================================================
+\subsection{Umkreissuche (Haversine)}
+Suchpunkt Düsseldorf Hbf (51,2200\,N / 6,7942\,E), Radius 60\,km, Ergebnis der Kernabfrage aus Abschnitt~7:
+
+\begin{center}\small
+\begin{tabular}{@{}lllllr@{}}
+\toprule
+\textbf{Titel} & \textbf{Zustand} & \textbf{Eigentümer:in} & \textbf{Standort} & \textbf{Versand} & \textbf{Distanz} \\
+\midrule
+Ein Skandal in Böhmen & gebraucht & Ben Fischer & Nachbarschaftstreff Köln & -- & 33,0\,km \\
+Faust & gut & Clara Hoffmann & Nachbarschaftstreff Köln & beides & 33,0\,km \\
+1984 & gut & Anna Bauer & Dortmunder Bucheck & post & 57,0\,km \\
+\bottomrule
+\end{tabular}
+\end{center}
+Nicht enthalten, obwohl im Radius: Buchtreff Düsseldorf (1,4\,km, Exemplar nicht freigegeben) und Essener Buchbörse (28,3\,km, Exemplar aktuell verliehen). Kontrollabfrage 8a (Distanz aller Standorte): Düsseldorf 1,4 -- Essen 28,3 -- Köln 33,0 -- Dortmund 57,0 -- Frankfurt 181,4 -- Stuttgart 320,9 -- Hamburg 338,3 -- Leipzig 388,4 -- Berlin 476,3 -- München 485,5\,km. Randfall 8b (10\,km um München): 0 Treffer, da beide Exemplare dort nicht freigegeben sind.
+
+\shot{umkreissuche.png}{Screenshot: Ergebnis der Umkreissuche im DBMS}
+
+\subsection{Index-Nutzung (EXPLAIN QUERY PLAN)}
+\begin{center}\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Abfrage} & \textbf{ohne Index} & \textbf{mit Index} \\
+\midrule
+Q1 Mein Regal & \texttt{SCAN e} & \texttt{SEARCH e USING INDEX idx\_buchexemplar\_eigentuemer} \\
+Q2 Meine Ausleihen & \texttt{SCAN} + \texttt{TEMP B-TREE} & \texttt{SEARCH USING INDEX idx\_ausleihe\_nutzer\_datum} \\
+Q3 Mahnlauf & \texttt{SCAN ausleihe} & \texttt{SEARCH USING INDEX idx\_ausleihe\_status} \\
+Q4 Bounding Box & \texttt{SCAN standort} & \texttt{SEARCH USING COVERING INDEX idx\_standort\_geo} \\
+Q5 Titelsuche & \texttt{SCAN buch} & \texttt{SEARCH USING COVERING INDEX idx\_buch\_titel} \\
+Q6 Badge & \texttt{SCAN benachrichtigung} & \texttt{SEARCH USING COVERING INDEX idx\_benachrichtigung\_ungelesen} \\
+Q7 Genre & \texttt{SCAN bg} & \texttt{SEARCH bg USING INDEX idx\_buch\_genre\_genre} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textit{Hinweis:} Die Nummerierung entspricht Abschnitt~8c des SQL-Skripts; der Benchmark in~4.3 verwendet eine eigene Nummerierung.
+
+\shot{explain.png}{Screenshot: EXPLAIN QUERY PLAN mit Indexnutzung im DBMS}
+
+\subsection{Laufzeit-Benchmark}
+Separate Datenbank mit identischem Schema, \benchmeta:
+\begin{center}\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Nr.} & \textbf{Abfrage} & \textbf{ohne [ms]} & \textbf{mit [ms]} & \textbf{Faktor} \\
+\midrule
+\benchrows
+\bottomrule
+\end{tabular}
+\end{center}
+Kosten: Dateigröße \benchsize; 5.000 Ausleihen + 5.000 Benachrichtigungen einfügen: \benchinsert. Bewertung siehe Abschlussdokument (BE), Abschnitt~2.1.
+
+\subsection{Negativtests}
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Nr.} & \textbf{Ungültiger Datensatz} & \textbf{Fehlermeldung (erwartet und erhalten)} \\
+\midrule
+1 & Sternebewertung 7 & \texttt{CHECK constraint failed: sternebewertung BETWEEN 1 AND 5} \\
+2 & Versandkosten $-5{,}00$ & \texttt{CHECK constraint failed: kosten >= 0} \\
+3 & Zeitslot 15:00--14:00 & \texttt{CHECK constraint failed: startzeit < endzeit} \\
+4 & \texttt{nutzer\_id} 9999 & \texttt{FOREIGN KEY constraint failed} \\
+5 & Eigenausleihe & \texttt{Nutzer kann eigenes Buchexemplar nicht ausleihen} \\
+6 & Bewertung vor Rückgabe & \texttt{Bewertung nur fuer abgeschlossene \dots{} erlaubt} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Metadaten}
+\mdTabellen{} Tabellen, \mdDatensaetze{} Datensätze, \mdIndizes{} eigene und \mdAutoIndizes{} automatische Indizes, \mdTrigger{} Trigger, \mdViews{} View; Dateigröße \mdBytes{} Byte (\mdSeiten{} Seiten à \mdSeitengroesse{} Byte = \mdKiB{} KiB), SQLite \mdSQLite.
+
+\shot[13cm]{metadaten.png}{Screenshot: Metadaten-Abfragen (Abschnitt 9) im DBMS}
+
+% =========================================================
+\appendix
+\section{Vollständiges SQL-Skript}
+% =========================================================
+\lstinputlisting[style=sql]{Senger-Tizian_IU14143428_DLBDSPBDM01_D_Abschlussphase_SQL.sql}
+
+\end{document}
